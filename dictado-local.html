@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Dictado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF0F7; --surface:#FFFFFF; --ink:#1C1B33; --muted:#6B6A86; --line:#DCDDEB;
+  --accent:#4B3FD9; --accent-ink:#FFFFFF; --rec:#E3365F; --rec-soft:rgba(227,54,95,.18);
+  --interim:#9A99B4;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#13122A; --surface:#1D1C3A; --ink:#ECEBFA; --muted:#A3A2C2; --line:#2E2D52;
+    --accent:#8F86FF; --accent-ink:#13122A; --rec:#FF5C82; --rec-soft:rgba(255,92,130,.22);
+    --interim:#6F6E92; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13122A; --surface:#1D1C3A; --ink:#ECEBFA; --muted:#A3A2C2; --line:#2E2D52;
+  --accent:#8F86FF; --accent-ink:#13122A; --rec:#FF5C82; --rec-soft:rgba(255,92,130,.22);
+  --interim:#6F6E92; color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.app{
+  height:100%;max-width:720px;margin:0 auto;
+  display:flex;flex-direction:column;padding:16px 16px 0;
+}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 4px 14px}
+h1{font-size:1.6rem;font-weight:700;letter-spacing:-.02em;margin:0;line-height:1}
+.status{font-size:.9rem;color:var(--muted);margin-top:4px}
+select{
+  font:inherit;font-size:.9rem;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line);border-radius:999px;padding:8px 30px 8px 14px;
+  appearance:none;-webkit-appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 16px) 52%,calc(100% - 11px) 52%;
+  background-size:5px 5px;background-repeat:no-repeat;
+}
+.sheet{
+  flex:1;min-height:0;display:flex;flex-direction:column;
+  background:var(--surface);border-radius:22px;border:1px solid var(--line);
+  overflow:hidden;
+}
+textarea{
+  flex:1;min-height:0;width:100%;resize:none;border:0;outline:0;background:transparent;
+  color:var(--ink);padding:20px 20px 8px;
+  font-family:"Literata",Georgia,"Times New Roman",serif;font-size:1.2rem;line-height:1.65;
+}
+textarea::placeholder{color:var(--interim)}
+.interim{
+  min-height:2.4em;padding:0 20px 14px;color:var(--interim);font-style:italic;
+  font-family:"Literata",Georgia,serif;font-size:1.05rem;line-height:1.5;
+}
+.meta{display:flex;justify-content:space-between;padding:10px 20px;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+.dock{
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;
+  padding:22px 8px calc(22px + env(safe-area-inset-bottom,0px));
+}
+.side{display:flex;gap:10px}
+.side.right{justify-content:flex-end}
+.tool{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:none;border:0;color:var(--muted);font:inherit;font-size:.78rem;cursor:pointer;
+  padding:6px;border-radius:14px;min-width:56px;
+}
+.tool svg{width:24px;height:24px;stroke:var(--ink)}
+.tool:active{transform:scale(.95)}
+.tool:focus-visible,.mic:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.mic{
+  position:relative;width:88px;height:88px;border-radius:50%;border:0;cursor:pointer;
+  background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;
+  box-shadow:0 10px 28px -10px var(--accent);transition:background .25s,transform .15s;
+}
+.mic svg{width:36px;height:36px;position:relative;z-index:1}
+.mic:active{transform:scale(.96)}
+.mic::before,.mic::after{
+  content:"";position:absolute;inset:0;border-radius:50%;background:var(--rec-soft);opacity:0;
+}
+.recording .mic{background:var(--rec);box-shadow:0 10px 28px -10px var(--rec)}
+.recording .mic::before{animation:ring 1.8s ease-out infinite}
+.recording .mic::after{animation:ring 1.8s ease-out .9s infinite}
+@keyframes ring{0%{transform:scale(1);opacity:1}100%{transform:scale(1.9);opacity:0}}
+.mic .stop{display:none}.recording .mic .go{display:none}.recording .mic .stop{display:block}
+.hint{text-align:center;color:var(--muted);font-size:.85rem;margin:-10px 0 0;padding:0 8px}
+.toast{
+  position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);
+  background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:.9rem;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.notice{
+  background:var(--rec-soft);color:var(--ink);border-radius:16px;padding:12px 16px;margin-bottom:12px;
+  font-size:.92rem;line-height:1.45;display:none;
+}
+.notice.show{display:block}
+@media (min-width:640px){
+  .app{padding:32px 24px 0}
+  h1{font-size:2rem}
+  textarea{padding:28px 32px 8px;font-size:1.3rem}
+  .interim{padding:0 32px 16px}
+  .meta{padding:12px 32px}
+}
+@media (prefers-reduced-motion:reduce){
+  .recording .mic::before,.recording .mic::after{animation:none;opacity:.6;transform:scale(1.25)}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div>
+      <h1>Dictado</h1>
+      <div class="status" id="status">Pulsa el micrófono y habla</div>
+    </div>
+    <select id="lang" aria-label="Idioma del dictado">
+      <option value="es-ES">Español (España)</option>
+      <option value="es-MX">Español (México)</option>
+      <option value="es-AR">Español (Argentina)</option>
+      <option value="es-CO">Español (Colombia)</option>
+      <option value="es-US">Español (EE. UU.)</option>
+    </select>
+  </header>
+
+  <div class="notice" id="notice"></div>
+
+  <section class="sheet">
+    <textarea id="text" placeholder="Lo que digas aparecerá aquí. También puedes escribir o corregir a mano." aria-label="Texto dictado"></textarea>
+    <div class="interim" id="interim" aria-live="polite"></div>
+    <div class="meta"><span id="words">0 palabras</span><span id="saved"></span></div>
+  </section>
+
+  <div class="dock">
+    <div class="side">
+      <button class="tool" id="copy" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
+        Copiar
+      </button>
+      <button class="tool" id="download" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+        Guardar
+      </button>
+    </div>
+    <button class="mic" id="mic" type="button" aria-label="Empezar a dictar">
+      <svg class="go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+      <svg class="stop" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2.5"/></svg>
+    </button>
+    <div class="side right">
+      <button class="tool" id="undo" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
+        Deshacer
+      </button>
+      <button class="tool" id="clear" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/></svg>
+        Borrar
+      </button>
+    </div>
+  </div>
+  <p class="hint">Di “coma”, “punto”, “punto y aparte” o “nueva línea” para puntuar.</p>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const app=$('app'), text=$('text'), interimEl=$('interim'), statusEl=$('status'),
+        mic=$('mic'), lang=$('lang'), notice=$('notice'), wordsEl=$('words'), savedEl=$('saved');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec=null, listening=false, history=[];
+
+  // ——— guardado local ———
+  try{
+    const d=localStorage.getItem('dictado-texto'); if(d) text.value=d;
+    const l=localStorage.getItem('dictado-idioma'); if(l) lang.value=l;
+  }catch(e){}
+  function save(){
+    try{ localStorage.setItem('dictado-texto',text.value); savedEl.textContent='Guardado'; }catch(e){}
+    const n=(text.value.trim().match(/\S+/g)||[]).length;
+    wordsEl.textContent = n===1 ? '1 palabra' : n+' palabras';
+  }
+  save(); savedEl.textContent='';
+
+  function toast(msg){
+    const t=$('toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),1800);
+  }
+  function showNotice(msg){ notice.innerHTML=msg; notice.classList.add('show'); }
+
+  // ——— comandos de puntuación ———
+  function punctuate(s){
+    s=' '+s.trim()+' ';
+    const rules=[
+      [/\s+punto y aparte\s+/gi,'.\n'],
+      [/\s+nueva l[ií]nea\s+/gi,'\n'],
+      [/\s+punto y coma\s+/gi,'; '],
+      [/\s+dos puntos\s+/gi,': '],
+      [/\s+abrir interrogaci[oó]n\s+/gi,' ¿'],
+      [/\s+cerrar interrogaci[oó]n\s+/gi,'? '],
+      [/\s+signo de interrogaci[oó]n\s+/gi,'? '],
+      [/\s+abrir exclamaci[oó]n\s+/gi,' ¡'],
+      [/\s+cerrar exclamaci[oó]n\s+/gi,'! '],
+      [/\s+coma\s+/gi,', '],
+      [/\s+punto\s+/gi,'. ']
+    ];
+    for(const [r,v] of rules){ while(r.test(s)){ s=s.replace(r,v+' '); r.lastIndex=0; } }
+    return s.replace(/ +\n/g,'\n').replace(/\n +/g,'\n').replace(/ {2,}/g,' ').replace(/ ([,.;:?!])/g,'$1').replace(/^ +/,'').replace(/ +$/,'');
+  }
+  function capitalizeFrom(prev, chunk){
+    const needsCap = prev.trim()==='' || /[.?!¿¡]\s*$/.test(prev) || /\n\s*$/.test(prev);
+    if(needsCap) chunk=chunk.replace(/^([¿¡]?)(\p{L})/u,(m,a,b)=>a+b.toUpperCase());
+    return chunk.replace(/([.?!]\s+|\n)([¿¡]?)(\p{L})/gu,(m,a,b,c)=>a+b+c.toUpperCase());
+  }
+  function append(raw){
+    let chunk=punctuate(raw); if(!chunk) return;
+    const prev=text.value;
+    chunk=capitalizeFrom(prev,chunk);
+    let sep='';
+    if(prev && !/[\s]$/.test(prev) && !/^[,.;:?!\n]/.test(chunk)) sep=' ';
+    history.push(prev); if(history.length>50) history.shift();
+    text.value=prev+sep+chunk;
+    text.scrollTop=text.scrollHeight;
+    save();
+  }
+
+  // ——— reconocimiento ———
+  if(!SR){
+    mic.disabled=true; mic.style.opacity=.45;
+    statusEl.textContent='Dictado no disponible aquí';
+    showNotice('Este navegador no permite dictar. Abre la página en <b>Chrome</b>, <b>Edge</b> o <b>Safari</b> (en el móvil, Chrome en Android o Safari en iPhone). Mientras tanto puedes escribir a mano.');
+  }
+
+  function start(){
+    if(!SR) return;
+    rec=new SR();
+    rec.lang=lang.value; rec.continuous=true; rec.interimResults=true;
+    rec.onstart=()=>{ listening=true; app.classList.add('recording'); statusEl.textContent='Escuchando…'; mic.setAttribute('aria-label','Parar el dictado'); notice.classList.remove('show'); };
+    rec.onresult=e=>{
+      let interim='';
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const r=e.results[i];
+        if(r.isFinal) append(r[0].transcript); else interim+=r[0].transcript;
+      }
+      interimEl.textContent=interim;
+    };
+    rec.onerror=e=>{
+      if(e.error==='not-allowed'||e.error==='service-not-allowed'){
+        listening=false;
+        showNotice('No hay permiso para usar el micrófono. Permítelo en el aviso del navegador (icono del candado junto a la dirección). Si no aparece ningún aviso, abre esta página en una pestaña nueva.');
+      }else if(e.error==='no-speech'){
+        statusEl.textContent='No te oigo, sigue hablando…';
+      }else if(e.error==='network'){
+        listening=false;
+        showNotice('El dictado necesita conexión a internet. Comprueba la conexión y vuelve a intentarlo.');
+      }else if(e.error==='audio-capture'){
+        listening=false;
+        showNotice('No se encuentra ningún micrófono. Conecta uno y vuelve a intentarlo.');
+      }
+    };
+    rec.onend=()=>{
+      interimEl.textContent='';
+      if(listening){ try{ rec.start(); return; }catch(err){} }
+      stopUI();
+    };
+    try{ rec.start(); }catch(err){}
+  }
+  function stopUI(){
+    listening=false; app.classList.remove('recording');
+    statusEl.textContent='Pulsa el micrófono y habla';
+    mic.setAttribute('aria-label','Empezar a dictar');
+  }
+  function stop(){ listening=false; if(rec){ try{rec.stop();}catch(e){} } stopUI(); }
+
+  mic.addEventListener('click',()=> listening ? stop() : start());
+  lang.addEventListener('change',()=>{
+    try{ localStorage.setItem('dictado-idioma',lang.value); }catch(e){}
+    if(listening){ stop(); setTimeout(start,250); }
+  });
+
+  // ——— herramientas ———
+  text.addEventListener('input',save);
+  $('copy').addEventListener('click',async()=>{
+    if(!text.value.trim()){ toast('No hay texto que copiar'); return; }
+    try{ await navigator.clipboard.writeText(text.value); toast('Texto copiado'); }
+    catch(e){ text.select(); document.execCommand('copy'); toast('Texto copiado'); }
+  });
+  $('download').addEventListener('click',()=>{
+    if(!text.value.trim()){ toast('No hay texto que guardar'); return; }
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([text.value],{type:'text/plain;charset=utf-8'}));
+    a.download='dictado.txt'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    toast('Archivo guardado');
+  });
+  $('undo').addEventListener('click',()=>{
+    if(!history.length){ toast('Nada que deshacer'); return; }
+    text.value=history.pop(); save(); toast('Deshecho');
+  });
+  $('clear').addEventListener('click',()=>{
+    if(!text.value) return;
+    if(confirm('¿Borrar todo el texto?')){ history.push(text.value); text.value=''; save(); toast('Texto borrado. Pulsa Deshacer para recuperarlo'); }
+  });
+})();
+</script>
+</body>
+</html>

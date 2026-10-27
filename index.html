@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>aRtefactoRia - Colección de Artefactos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF0F7; --surface:#FFFFFF; --ink:#1C1B33; --muted:#6B6A86; --line:#DCDDEB;
+  --accent:#4B3FD9; --accent-ink:#FFFFFF; --rec:#E3365F; --rec-soft:rgba(227,54,95,.14);
+  --tint:rgba(75,63,217,.09); --ok:#1F8A5B; --ok-soft:rgba(31,138,91,.12);
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#13122A; --surface:#1D1C3A; --ink:#ECEBFA; --muted:#A3A2C2; --line:#2E2D52;
+    --accent:#8F86FF; --accent-ink:#13122A; --rec:#FF5C82; --rec-soft:rgba(255,92,130,.16);
+    --tint:rgba(143,134,255,.13); --ok:#5CD39C; --ok-soft:rgba(92,211,156,.14); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13122A; --surface:#1D1C3A; --ink:#ECEBFA; --muted:#A3A2C2; --line:#2E2D52;
+  --accent:#8F86FF; --accent-ink:#13122A; --rec:#FF5C82; --rec-soft:rgba(255,92,130,.16);
+  --tint:rgba(143,134,255,.13); --ok:#5CD39C; --ok-soft:rgba(92,211,156,.14); color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{min-height:100%}
+body{
+  margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.app{max-width:720px;margin:0 auto;padding:24px 16px 40px;display:flex;flex-direction:column;gap:14px}
+
+.hero{display:flex;align-items:center;gap:16px;padding:8px 4px 10px}
+.logo{
+  width:72px;height:72px;flex:none;border-radius:22px;background:var(--surface);border:1px solid var(--line);
+  display:grid;place-items:center;
+}
+.logo img{width:54px;height:54px}
+h1{font-size:1.9rem;font-weight:700;letter-spacing:-.02em;margin:0;line-height:1.05}
+.lead{margin:6px 0 0;color:var(--muted);font-size:.98rem;line-height:1.45}
+
+.notice{background:var(--rec-soft);border-radius:16px;padding:12px 16px;font-size:.92rem;line-height:1.5;display:none}
+.notice.show{display:block}
+.notice code{font-size:.88em}
+
+.tools{display:grid;gap:12px}
+.tool{
+  display:flex;gap:16px;align-items:flex-start;text-decoration:none;color:inherit;
+  background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px;
+  transition:border-color .2s,transform .15s,box-shadow .2s;
+}
+.tool:hover{border-color:var(--accent);box-shadow:0 12px 28px -18px var(--accent)}
+.tool:active{transform:scale(.99)}
+.tool:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.icon{
+  width:56px;height:56px;flex:none;border-radius:50%;display:grid;place-items:center;
+  background:var(--accent);color:var(--accent-ink);box-shadow:0 8px 20px -10px var(--accent);
+}
+.icon.rec{background:var(--rec);box-shadow:0 8px 20px -10px var(--rec)}
+.icon svg{width:24px;height:24px}
+.body{flex:1;min-width:0}
+.title{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h2{font-size:1.15rem;font-weight:700;margin:0;letter-spacing:-.01em}
+.arrow{width:20px;height:20px;stroke:var(--muted);flex:none;transition:transform .2s,stroke .2s}
+.tool:hover .arrow{transform:translateX(3px);stroke:var(--accent)}
+.desc{margin:6px 0 10px;color:var(--muted);font-size:.93rem;line-height:1.5}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:.76rem;padding:4px 10px;border-radius:999px;background:var(--tint);color:var(--ink)}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.srv{background:var(--rec-soft);color:var(--rec)}
+
+h3{font-size:1rem;font-weight:700;margin:14px 4px 0}
+.extra{
+  display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;
+  background:transparent;border:1px dashed var(--line);border-radius:18px;padding:14px 16px;
+}
+.extra:hover{border-color:var(--accent)}
+.extra:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.extra svg{width:22px;height:22px;stroke:var(--accent);flex:none}
+.extra span{font-size:.92rem;color:var(--muted);line-height:1.45}
+.extra b{color:var(--ink);font-weight:500}
+footer{text-align:center;color:var(--muted);font-size:.82rem;margin-top:10px;line-height:1.5}
+
+@media (min-width:640px){
+  .app{padding:40px 24px 48px}
+  h1{font-size:2.3rem}
+  .tool{padding:22px 24px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="hero">
+    <div class="logo"><img src="favicon.svg" alt=""></div>
+    <div>
+      <h1>aRtefactoRia</h1>
+      <p class="lead">Coleccion de artefactos, páginas SPA que pueden ser útiles en tu trabajo diario.</p>
+    </div>
+  </header>
+
+  <div class="notice" id="notice">
+    Estás viendo esta página como archivo. El dictado y las grabadoras funcionan así, pero para transcribir abre la carpeta con el servidor local: ejecuta <code>python -m http.server 8000</code> en esta carpeta y entra en <code>http://localhost:8000</code>.
+  </div>
+
+  <nav class="tools" aria-label="Herramientas">
+    <a class="tool" href="dictado-local.html">
+      <div class="icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+      </div>
+      <div class="body">
+        <div class="title"><h2>Dictado</h2><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <p class="desc">Habla al micrófono y el texto se escribe solo. Puntúas con la voz diciendo “coma”, “punto” o “punto y aparte”.</p>
+        <div class="tags"><span class="tag">Micrófono</span><span class="tag">Chrome, Edge, Safari</span><span class="tag ok">Abre con doble clic</span></div>
+      </div>
+    </a>
+
+    <a class="tool" href="grabadora.html">
+      <div class="icon rec" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>
+      </div>
+      <div class="body">
+        <div class="title"><h2>Grabadora (sólo audio)</h2><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <p class="desc">Graba el sonido de otra pestaña del navegador y lo guarda en .opus, con calidad de 64 a 256 kbps.</p>
+        <div class="tags"><span class="tag">Audio de pestañas</span><span class="tag">Chrome, Edge escritorio</span><span class="tag ok">Abre con doble clic</span></div>
+      </div>
+    </a>
+
+    <a class="tool" href="grabadora-video.html">
+      <div class="icon rec" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg>
+      </div>
+      <div class="body">
+        <div class="title"><h2>Grabadora de vídeo</h2><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <p class="desc">Graba la pantalla, una ventana, una pestaña o la cámara, con su sonido y, si quieres, tu micrófono. Guarda en MP4 o WebM.</p>
+        <div class="tags"><span class="tag">Pantalla o cámara</span><span class="tag">Chrome, Edge, Firefox</span><span class="tag ok">Abre con doble clic</span></div>
+      </div>
+    </a>
+
+    <a class="tool" href="grabadora-transcripcion.html">
+      <div class="icon rec" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="12" r="4" fill="currentColor" stroke="none"/><path d="M15 8h6M15 12h6M15 16h4"/></svg>
+      </div>
+      <div class="body">
+        <div class="title"><h2>Grabadora con transcripción</h2><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <p class="desc">La grabadora, con un botón para pasar cada grabación a texto con Whisper. Pensada para grabaciones cortas o medianas.</p>
+        <div class="tags"><span class="tag">Grabar + texto</span><span class="tag">.txt y .srt</span><span class="tag srv">Necesita servidor local</span></div>
+      </div>
+    </a>
+
+    <a class="tool" href="transcripcion-por-partes.html">
+      <div class="icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 6h14M5 11h14M5 16h9"/></svg>
+      </div>
+      <div class="body">
+        <div class="title"><h2>Transcripción por partes</h2><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <p class="desc">Convierte en texto cualquier archivo de audio, incluso de varias horas. Guarda el avance para continuar si se interrumpe.</p>
+        <div class="tags"><span class="tag">Audios largos</span><span class="tag">.txt y .srt</span><span class="tag srv">Necesita servidor local</span></div>
+      </div>
+    </a>
+
+    <a class="tool" href="transcripcion-google-colab.html">
+      <div class="icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 6h14M5 11h14M5 16h9"/></svg>
+      </div>
+      <div class="body">
+        <div class="title"><h2>Transcripción Google Colab</h2><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <p class="desc">Convierte en texto cualquier archivo de audio, incluso de varias horas. Guarda los ficheros en el Drive de Google, tendrás que ajustar las rutas para que funcione correctamente.</p>
+        <div class="tags"><span class="tag">Audios largos</span><span class="tag">.txt y .srt</span><span class="tag srv">Necesita Google Colab</span></div>
+      </div>
+    </a>
+
+
+  </nav>
+
+  <h3>Ayuda</h3>
+  <a class="extra" href="README.md">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>
+    <span><b>Instrucciones (README)</b> · Cómo lanzar el servidor local con Python y resolver los problemas más habituales.</span>
+  </a>
+
+  <footer>Todo funciona en tu ordenador: el audio y el texto no salen de tu navegador.</footer>
+</div>
+<script>
+  if (location.protocol === 'file:') document.getElementById('notice').classList.add('show');
+</script>
+</body>
+</html>

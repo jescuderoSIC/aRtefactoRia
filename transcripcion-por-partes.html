@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Transcriptor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF0F7; --surface:#FFFFFF; --ink:#1C1B33; --muted:#6B6A86; --line:#DCDDEB;
+  --accent:#4B3FD9; --accent-ink:#FFFFFF; --rec:#E3365F; --rec-soft:rgba(227,54,95,.18);
+  --soft:#9A99B4; --tint:rgba(75,63,217,.08);
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#13122A; --surface:#1D1C3A; --ink:#ECEBFA; --muted:#A3A2C2; --line:#2E2D52;
+    --accent:#8F86FF; --accent-ink:#13122A; --rec:#FF5C82; --rec-soft:rgba(255,92,130,.22);
+    --soft:#6F6E92; --tint:rgba(143,134,255,.12); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13122A; --surface:#1D1C3A; --ink:#ECEBFA; --muted:#A3A2C2; --line:#2E2D52;
+  --accent:#8F86FF; --accent-ink:#13122A; --rec:#FF5C82; --rec-soft:rgba(255,92,130,.22);
+  --soft:#6F6E92; --tint:rgba(143,134,255,.12); color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{min-height:100%}
+body{
+  margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.app{max-width:720px;margin:0 auto;padding:16px 16px 40px;display:flex;flex-direction:column;gap:14px}
+header{padding:4px 4px 0}
+h1{font-size:1.6rem;font-weight:700;letter-spacing:-.02em;margin:0;line-height:1}
+.status{font-size:.9rem;color:var(--muted);margin-top:4px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:20px}
+.notice{background:var(--rec-soft);border-radius:16px;padding:12px 16px;font-size:.92rem;line-height:1.45;display:none}
+.notice.show{display:block}
+.notice code{font-size:.88em}
+select{
+  font:inherit;font-size:.9rem;color:var(--ink);background:var(--surface);width:100%;
+  border:1px solid var(--line);border-radius:999px;padding:8px 30px 8px 14px;
+  appearance:none;-webkit-appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 16px) 52%,calc(100% - 11px) 52%;
+  background-size:5px 5px;background-repeat:no-repeat;
+}
+select:disabled{opacity:.5}
+button{font:inherit;cursor:pointer}
+button:focus-visible,select:focus-visible,.drop:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+
+/* zona de archivo */
+.drop{
+  display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;
+  border:2px dashed var(--line);border-radius:22px;padding:28px 20px;background:var(--surface);
+  transition:border-color .2s,background .2s;cursor:pointer;
+}
+.drop.over{border-color:var(--accent);background:var(--tint)}
+.round{
+  width:88px;height:88px;border-radius:50%;border:0;display:grid;place-items:center;
+  background:var(--accent);color:var(--accent-ink);box-shadow:0 10px 28px -10px var(--accent);
+}
+.round svg{width:34px;height:34px}
+.drop-title{font-weight:700;font-size:1.1rem}
+.drop-sub{font-size:.88rem;color:var(--muted);line-height:1.45;max-width:30em}
+.file{display:none;align-items:center;gap:12px;width:100%;text-align:left}
+.file.show{display:flex}
+.file-icon{width:44px;height:44px;border-radius:14px;background:var(--tint);display:grid;place-items:center;flex:none}
+.file-icon svg{width:22px;height:22px;stroke:var(--accent)}
+.file-name{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-meta{font-size:.85rem;color:var(--muted);margin-top:2px}
+.file-text{min-width:0;flex:1}
+
+/* ajustes */
+.set-row{display:flex;flex-wrap:wrap;gap:10px 14px}
+.set-row label{display:flex;flex-direction:column;gap:5px;font-size:.82rem;color:var(--muted);flex:1;min-width:150px}
+.go{
+  margin-top:16px;width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+  border:0;border-radius:999px;padding:14px 18px;font-size:1.05rem;font-weight:700;
+  background:var(--accent);color:var(--accent-ink);box-shadow:0 10px 24px -12px var(--accent);
+}
+.go svg{width:20px;height:20px}
+.go:disabled{opacity:.4;cursor:default;box-shadow:none}
+.go.cancel{background:var(--rec);box-shadow:0 10px 24px -12px var(--rec)}
+.resume{margin:12px 0 0;font-size:.88rem;line-height:1.45;color:var(--muted);display:none}
+.resume.show{display:block}
+.link{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;font-size:inherit}
+
+/* progreso */
+.prog{display:none;flex-direction:column;gap:10px}
+.prog.show{display:flex}
+.prog-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.pct{font-family:"Literata",Georgia,serif;font-weight:500;font-size:2.4rem;line-height:1;font-variant-numeric:tabular-nums}
+.eta{font-size:.88rem;color:var(--muted);text-align:right}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar span{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .4s}
+.prog-label{font-size:.88rem;color:var(--muted)}
+
+/* resultado */
+h2{font-size:1.1rem;font-weight:700;margin:0 0 10px}
+textarea{
+  width:100%;min-height:14em;resize:vertical;border:1px solid var(--line);border-radius:14px;outline:0;
+  background:var(--bg);color:var(--ink);padding:14px 16px;
+  font-family:"Literata",Georgia,"Times New Roman",serif;font-size:1.05rem;line-height:1.65;
+}
+textarea:focus{border-color:var(--accent)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.pill{border:1px solid var(--line);border-radius:999px;padding:9px 15px;background:transparent;color:var(--ink);font-size:.9rem}
+.pill:disabled{opacity:.4;cursor:default}
+.pill.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+
+/* modelos */
+.models{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.models p{margin:0;font-size:.88rem;color:var(--muted);line-height:1.45;flex:1;min-width:200px}
+.engine{font-size:.85rem;color:var(--muted);margin:10px 0 0;line-height:1.45}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);
+  background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:.9rem;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (min-width:640px){
+  .app{padding:32px 24px 48px}
+  h1{font-size:2rem}
+  .card{padding:24px 28px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Transcriptor</h1>
+    <div class="status" id="status">Convierte un audio en texto, en tu ordenador</div>
+  </header>
+
+  <div class="notice" id="notice"></div>
+
+  <div class="drop" id="drop" tabindex="0" role="button" aria-label="Elegir archivo de audio">
+    <div class="round" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>
+    </div>
+    <div>
+      <div class="drop-title">Elige o arrastra un audio</div>
+      <div class="drop-sub">Funciona con cualquier audio. Con .opus, .ogg y .webm (como los de la grabadora) procesa por partes y aguanta grabaciones de varias horas.</div>
+    </div>
+    <div class="file" id="file">
+      <div class="file-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg></div>
+      <div class="file-text"><div class="file-name" id="fileName"></div><div class="file-meta" id="fileMeta"></div></div>
+    </div>
+    <input type="file" id="input" accept="audio/*,video/webm,.opus,.ogg,.webm,.mp3,.wav,.m4a,.flac" hidden>
+  </div>
+
+  <section class="card">
+    <div class="set-row">
+      <label>Modelo
+        <select id="model">
+          <option value="onnx-community/whisper-tiny">Muy rápido (descarga pequeña)</option>
+          <option value="onnx-community/whisper-base" selected>Equilibrado (descarga media)</option>
+          <option value="onnx-community/whisper-small">Preciso (descarga grande)</option>
+        </select>
+      </label>
+      <label>Idioma del audio
+        <select id="lang">
+          <option value="spanish" selected>Español</option>
+          <option value="english">Inglés</option>
+          <option value="">Detectar automáticamente</option>
+        </select>
+      </label>
+    </div>
+    <button class="go" id="go" type="button" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 6h14M5 11h14M5 16h9"/></svg>
+      <span id="goLabel">Transcribir</span>
+    </button>
+    <p class="resume" id="resume"></p>
+  </section>
+
+  <section class="card prog" id="prog" aria-live="polite">
+    <div class="prog-top"><div class="pct" id="pct">0 %</div><div class="eta" id="eta"></div></div>
+    <div class="bar"><span id="bar"></span></div>
+    <div class="prog-label" id="progLabel"></div>
+  </section>
+
+  <section class="card">
+    <h2>Transcripción</h2>
+    <textarea id="text" placeholder="Aquí aparecerá el texto a medida que se vaya transcribiendo." aria-label="Transcripción"></textarea>
+    <div class="actions">
+      <button class="pill primary" id="copy" type="button">Copiar</button>
+      <button class="pill" id="txt" type="button">Descargar .txt</button>
+      <button class="pill" id="srt" type="button">Descargar subtítulos .srt</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="models">
+      <p id="storage">Los modelos se guardan en el almacenamiento del navegador para no descargarlos cada vez.</p>
+      <button class="pill" id="clearModels" type="button">Borrar modelos descargados</button>
+    </div>
+    <p class="engine" id="engine"></p>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="text/plain" id="worker-src">
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
+env.allowLocalModels = false;
+let asr = null, current = '', device = '';
+
+async function load(model){
+  if (asr && current === model) return;
+  if (asr) { try { await asr.dispose(); } catch (e) {} asr = null; }
+  const progress = p => { if (p.status === 'progress' && p.total) postMessage({ type:'download', file:p.file, loaded:p.loaded, total:p.total }); };
+  let gpu = false;
+  try { gpu = !!(navigator.gpu && await navigator.gpu.requestAdapter()); } catch (e) {}
+  if (gpu) {
+    try {
+      asr = await pipeline('automatic-speech-recognition', model,
+        { device:'webgpu', dtype:{ encoder_model:'fp32', decoder_model_merged:'q4' }, progress_callback:progress });
+      device = 'webgpu';
+    } catch (e) { asr = null; }
+  }
+  if (!asr) {
+    asr = await pipeline('automatic-speech-recognition', model, { device:'wasm', dtype:'q8', progress_callback:progress });
+    device = 'wasm';
+  }
+  current = model;
+}
+
+self.onmessage = async e => {
+  const m = e.data;
+  try {
+    if (m.type === 'load') {
+      await load(m.model);
+      postMessage({ id:m.id, type:'ok', device });
+    } else if (m.type === 'run') {
+      const opts = { task:'transcribe', return_timestamps:true };
+      if (m.language) opts.language = m.language;
+      const out = await asr(m.audio, opts);
+      postMessage({ id:m.id, type:'ok', text:out.text || '', chunks:out.chunks || [] });
+    }
+  } catch (err) {
+    postMessage({ id:m.id, type:'error', message:String((err && err.message) || err) });
+  }
+};
+</script>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const SR=16000, WIN=30, BLOCK=60;
+  const drop=$('drop'), input=$('input'), fileBox=$('file'), fileName=$('fileName'), fileMeta=$('fileMeta'),
+        modelSel=$('model'), langSel=$('lang'), go=$('go'), goLabel=$('goLabel'), resumeEl=$('resume'),
+        prog=$('prog'), pct=$('pct'), eta=$('eta'), bar=$('bar'), progLabel=$('progLabel'),
+        text=$('text'), statusEl=$('status'), notice=$('notice'), engine=$('engine'), storageEl=$('storage');
+
+  let file=null, info=null, running=false, cancelled=false, segs=[], wakeLock=null;
+
+  // ——— utilidades ———
+  function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2200); }
+  function showNotice(h){ notice.innerHTML=h; notice.classList.add('show'); }
+  const size=b=> b<1048576 ? (b/1024).toFixed(0)+' KB' : b<1073741824 ? (b/1048576).toFixed(1).replace('.',',')+' MB' : (b/1073741824).toFixed(2).replace('.',',')+' GB';
+  const clock=sec=>{ sec=Math.max(0,Math.round(sec)); const h=Math.floor(sec/3600), m=Math.floor(sec/60)%60, s=sec%60;
+    return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(s).padStart(2,'0'); };
+  const human=sec=>{ sec=Math.round(sec); if(sec<60) return 'menos de un minuto'; const h=Math.floor(sec/3600), m=Math.round((sec%3600)/60);
+    return h ? h+' h '+(m?m+' min':'') : m+' min'; };
+  const ts=t=>{ const ms=Math.max(0,Math.round(t*1000)), h=Math.floor(ms/3600000), m=Math.floor(ms/60000)%60, s=Math.floor(ms/1000)%60;
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')+','+String(ms%1000).padStart(3,'0'); };
+  const toText=list=>list.map(g=>g.text).join(' ').replace(/\s+([,.;:?!])/g,'$1').trim();
+  const toSrt=list=>list.map((g,i)=>(i+1)+'\n'+ts(g.start)+' --> '+ts(Math.max(g.end,g.start+0.3))+'\n'+g.text+'\n').join('\n');
+  const baseName=()=> file ? file.name.replace(/\.[^.]+$/,'') : 'transcripcion';
+
+  try{
+    const m=localStorage.getItem('transcriptor-modelo'); if(m) modelSel.value=m;
+    const l=localStorage.getItem('transcriptor-idioma'); if(l!==null) langSel.value=l;
+  }catch(e){}
+  modelSel.addEventListener('change',()=>{ try{localStorage.setItem('transcriptor-modelo',modelSel.value);}catch(e){} });
+  langSel.addEventListener('change',()=>{ try{localStorage.setItem('transcriptor-idioma',langSel.value);}catch(e){} });
+
+  if(location.protocol==='file:'){
+    showNotice('Esta página tiene que abrirse desde un servidor local para poder descargar el modelo. En la carpeta del archivo ejecuta <code>python -m http.server 8000</code> y entra en <code>http://localhost:8000/transcriptor.html</code>.');
+  }
+
+  // ——— Opus: análisis de paquetes ———
+  function opusSamples(p){ if(!p.length) return 0; const toc=p[0], c=toc>>3;
+    const fs = c<12 ? [480,960,1920,2880][c&3] : c<16 ? [480,960][c&1] : [120,240,480,960][c&3];
+    const k=toc&3, n = k===0 ? 1 : k===3 ? ((p[1]||0)&0x3F) : 2; return fs*n; }
+  const isMagic=(d,str,o=0)=>{ for(let i=0;i<str.length;i++) if(d[o+i]!==str.charCodeAt(i)) return false; return true; };
+
+  // Ogg: devuelve los paquetes uno a uno (sin copiar memoria)
+  function* oggPackets(d){
+    let p=0, parts=[];
+    while(p+27<=d.length){
+      if(!isMagic(d,'OggS',p)){ p++; continue; }
+      const n=d[p+26]; let q=p+27+n;
+      for(let i=0;i<n;i++){
+        const l=d[p+27+i]; parts.push(d.subarray(q,q+l)); q+=l;
+        if(l<255){
+          if(parts.length===1) yield parts[0];
+          else { const len=parts.reduce((a,b)=>a+b.length,0), o=new Uint8Array(len); let k=0; for(const x of parts){ o.set(x,k); k+=x.length; } yield o; }
+          parts=[];
+        }
+      }
+      p=q;
+    }
+  }
+  // WebM/Matroska: devuelve {head}, {codec}, {channels} y {pkt}
+  function* webmItems(d){
+    let p=0;
+    const MASTER=new Set([0x18538067,0x1654AE6B,0xAE,0xE1,0x1F43B675,0xA0]);
+    const vlen=(b,max)=>{ let len=1,m=0x80; while(len<=max && !(b&m)){ m>>=1; len++; } if(len>max) throw 0; return [len,m]; };
+    while(p<d.length){
+      let id=0,size;
+      try{
+        let [len]=vlen(d[p],4); for(let i=0;i<len;i++) id=id*256+d[p+i]; p+=len;
+        let [l2,m]=vlen(d[p],8); let v=d[p]&(m-1), ones=(v===m-1);
+        for(let i=1;i<l2;i++){ v=v*256+d[p+i]; if(d[p+i]!==0xFF) ones=false; } p+=l2; size=ones?-1:v;
+      }catch(e){ return; }
+      if(MASTER.has(id)) continue;
+      if(size<0 || p+size>d.length) return;
+      if(id===0x63A2) yield {head:d.slice(p,p+size)};
+      else if(id===0x86) yield {codec:new TextDecoder().decode(d.subarray(p,p+size))};
+      else if(id===0x9F){ let v=0; for(let i=0;i<size;i++) v=v*256+d[p+i]; yield {channels:v}; }
+      else if(id===0xA3 || id===0xA1){
+        let q=p; const [len]=vlen(d[q],8); q+=len+2;
+        if(!(d[q]&0x06)){ q+=1; if(p+size>q) yield {pkt:d.subarray(q,p+size)}; }
+      }
+      p+=size;
+    }
+  }
+
+  // ——— analizar archivo ———
+  async function analyze(f){
+    const buf=new Uint8Array(await f.arrayBuffer());
+    const canStream = 'AudioDecoder' in window;
+    if(canStream && isMagic(buf,'OggS')){
+      const it=oggPackets(buf); const head=it.next().value;
+      if(head && isMagic(head,'OpusHead')){
+        let total=0; for(const p of oggPackets(buf)){ if(isMagic(p,'OpusHead')||isMagic(p,'OpusTags')) continue; total+=opusSamples(p); }
+        return {kind:'ogg', buf, head:head.slice(), channels:head[9]||2, duration:total/48000};
+      }
+    }
+    if(canStream && buf[0]===0x1A && buf[1]===0x45 && buf[2]===0xDF && buf[3]===0xA3){
+      let head=null, codec='', channels=2, total=0;
+      for(const it of webmItems(buf)){
+        if(it.head) head=it.head; else if(it.codec) codec=it.codec; else if(it.channels) channels=it.channels;
+        else if(it.pkt) total+=opusSamples(it.pkt);
+      }
+      if(codec==='A_OPUS' && total>0){
+        if(!head || !isMagic(head,'OpusHead')){
+          head=new Uint8Array(19); head.set(new TextEncoder().encode('OpusHead')); head[8]=1; head[9]=channels;
+          new DataView(head.buffer).setUint32(12,48000,true);
+        }
+        return {kind:'webm', buf, head, channels:head[9]||channels, duration:total/48000};
+      }
+    }
+    // otros formatos: duración desde un elemento de audio
+    const duration=await new Promise(res=>{
+      const a=new Audio(); a.preload='metadata';
+      a.onloadedmetadata=()=>{ res(isFinite(a.duration)?a.duration:0); URL.revokeObjectURL(a.src); };
+      a.onerror=()=>{ res(0); URL.revokeObjectURL(a.src); };
+      a.src=URL.createObjectURL(f);
+    });
+    return {kind:'other', buf, duration};
+  }
+
+  // ——— remuestrear a 16 kHz mono ———
+  async function to16kMono(channels,rate){
+    const len=channels[0].length; if(!len) return new Float32Array(0);
+    const ab=new AudioBuffer({length:len,numberOfChannels:channels.length,sampleRate:rate});
+    channels.forEach((c,i)=>ab.copyToChannel(c,i));
+    const off=new OfflineAudioContext(1,Math.max(1,Math.ceil(len*SR/rate)),SR);
+    const src=off.createBufferSource(); src.buffer=ab; src.connect(off.destination); src.start();
+    return (await off.startRendering()).getChannelData(0);
+  }
+
+  // ——— bloques de audio (60 s) desde la posición indicada ———
+  async function* opusBlocks(packets, head, channels, startSec){
+    const startSample=Math.floor(startSec*48000);
+    const outs=[]; let err=null;
+    const dec=new AudioDecoder({output:d=>outs.push(d), error:e=>{ err=e; }});
+    dec.configure({codec:'opus', sampleRate:48000, numberOfChannels:channels, description:head});
+    let pos=0, blockStart=null, inBlock=0;
+    async function collect(){
+      await dec.flush(); if(err) throw err;
+      const frames=outs.reduce((a,d)=>a+d.numberOfFrames,0), nch=outs.length?outs[0].numberOfChannels:channels;
+      const chans=Array.from({length:nch},()=>new Float32Array(frames)); let o=0;
+      for(const d of outs){ for(let c=0;c<nch;c++){ const tmp=new Float32Array(d.numberOfFrames); d.copyTo(tmp,{planeIndex:c,format:'f32-planar'}); chans[c].set(tmp,o); } o+=d.numberOfFrames; d.close(); }
+      outs.length=0;
+      return to16kMono(chans,48000);
+    }
+    try{
+      for(const p of packets){
+        const n=opusSamples(p);
+        if(pos+n<=startSample){ pos+=n; continue; }
+        if(blockStart===null) blockStart=pos/48000;
+        dec.decode(new EncodedAudioChunk({type:'key', timestamp:Math.round(pos/48*1000), data:p}));
+        pos+=n; inBlock+=n;
+        if(inBlock>=BLOCK*48000){ const audio=await collect(); yield {audio,start:blockStart}; blockStart=null; inBlock=0; }
+        if(cancelled) return;
+      }
+      if(inBlock>0){ const audio=await collect(); yield {audio,start:blockStart}; }
+    } finally { try{ dec.close(); }catch(e){} }
+  }
+  async function* otherBlocks(buf, startSec){
+    let decoded;
+    try{
+      const ctx=new AudioContext({sampleRate:SR});
+      const ab=await ctx.decodeAudioData(buf.buffer.slice(buf.byteOffset,buf.byteOffset+buf.byteLength)); ctx.close();
+      if(ab.numberOfChannels===1) decoded=ab.getChannelData(0);
+      else { const a=ab.getChannelData(0), b=ab.getChannelData(1); decoded=new Float32Array(a.length); for(let i=0;i<a.length;i++) decoded[i]=(a[i]+b[i])/2; }
+    }catch(e){
+      throw new Error('formato');
+    }
+    for(let s=Math.floor(startSec*SR); s<decoded.length; s+=BLOCK*SR) yield {audio:decoded.subarray(s,Math.min(decoded.length,s+BLOCK*SR)), start:s/SR};
+  }
+  function blocks(startSec){
+    if(info.kind==='ogg'){
+      function* audioOnly(){ for(const p of oggPackets(info.buf)){ if(isMagic(p,'OpusHead')||isMagic(p,'OpusTags')) continue; yield p; } }
+      return opusBlocks(audioOnly(), info.head, info.channels, startSec);
+    }
+    if(info.kind==='webm'){
+      function* audioOnly(){ for(const it of webmItems(info.buf)) if(it.pkt) yield it.pkt; }
+      return opusBlocks(audioOnly(), info.head, info.channels, startSec);
+    }
+    return otherBlocks(info.buf, startSec);
+  }
+
+  // ——— trabajador con Whisper ———
+  let worker=null, seq=0; const pending={}, dl={};
+  function getWorker(){
+    if(worker) return worker;
+    const code=document.getElementById('worker-src').textContent;
+    worker=new Worker(URL.createObjectURL(new Blob([code],{type:'text/javascript'})),{type:'module'});
+    worker.onmessage=e=>{
+      const m=e.data;
+      if(m.type==='download'){
+        dl[m.file]=[m.loaded,m.total]; let a=0,b=0; for(const k in dl){ a+=dl[k][0]; b+=dl[k][1]; }
+        setProgress(b?a/b:0,'Descargando el modelo… '+size(a)+' de '+size(b),'Solo la primera vez');
+        return;
+      }
+      const p=pending[m.id]; if(!p) return; delete pending[m.id];
+      m.type==='error' ? p.rej(new Error(m.message)) : p.res(m);
+    };
+    worker.onerror=e=>{
+      for(const k in pending){ pending[k].rej(new Error(e.message||'El transcriptor se ha detenido')); delete pending[k]; }
+      worker=null;
+    };
+    return worker;
+  }
+  function ask(msg,transfer){ return new Promise((res,rej)=>{ const id=++seq; pending[id]={res,rej}; getWorker().postMessage({...msg,id},transfer||[]); }); }
+
+  // ——— progreso guardado (para continuar si algo falla) ———
+  const saveKey=()=> 'transcriptor:'+file.name+':'+file.size;
+  function loadSaved(){ try{ return JSON.parse(localStorage.getItem(saveKey())||'null'); }catch(e){ return null; } }
+  function storeSaved(done){ try{ localStorage.setItem(saveKey(),JSON.stringify({done,segs})); }catch(e){} }
+  function dropSaved(){ try{ localStorage.removeItem(saveKey()); }catch(e){} }
+
+  // ——— elegir archivo ———
+  drop.addEventListener('click',()=>{ if(!running) input.click(); });
+  drop.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ') && !running){ e.preventDefault(); input.click(); } });
+  input.addEventListener('change',()=>{ if(input.files[0]) pick(input.files[0]); input.value=''; });
+  ['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{ e.preventDefault(); if(!running) drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{ e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f && !running) pick(f); });
+
+  async function pick(f){
+    file=f; info=null; go.disabled=true; segs=[]; text.value='';
+    fileBox.classList.add('show'); fileName.textContent=f.name; fileMeta.textContent=size(f.size)+' · analizando…';
+    try{ info=await analyze(f); }
+    catch(e){ fileMeta.textContent=size(f.size)+' · no se puede leer'; toast('No se ha podido leer el archivo'); return; }
+    const mode = info.kind==='other' ? 'se procesa entero' : 'se procesa por partes';
+    fileMeta.textContent=size(f.size)+(info.duration?' · '+clock(info.duration):'')+' · '+mode;
+    if(info.kind==='other' && info.duration>45*60){
+      showNotice('Este formato hay que descomprimirlo entero y en audios tan largos puede quedarse sin memoria. Si falla, conviértelo antes a Opus con ffmpeg: <code>ffmpeg -i "'+f.name.replace(/</g,'&lt;')+'" -c:a libopus -b:a 48k audio.opus</code>');
+    }
+    const saved=loadSaved();
+    if(saved && saved.done>0){
+      segs=saved.segs||[]; text.value=toText(segs);
+      resumeEl.innerHTML='Hay una transcripción a medias de este archivo, hasta el minuto '+clock(saved.done)+'. Al pulsar el botón continuará desde ahí. <button class="link" id="restart" type="button">Empezar de cero</button>';
+      resumeEl.classList.add('show'); goLabel.textContent='Continuar transcripción';
+      $('restart').addEventListener('click',()=>{ dropSaved(); segs=[]; text.value=''; resumeEl.classList.remove('show'); goLabel.textContent='Transcribir'; });
+    }else{ resumeEl.classList.remove('show'); goLabel.textContent='Transcribir'; }
+    go.disabled=false;
+  }
+
+  // ——— transcribir ———
+  function setProgress(f,label,etaText){ prog.classList.add('show'); pct.textContent=Math.floor(f*100)+' %'; bar.style.width=(f*100).toFixed(1)+'%'; progLabel.textContent=label; eta.textContent=etaText||''; }
+  function rms(a,s,e){ let t=0; for(let i=s;i<e;i++) t+=a[i]*a[i]; return Math.sqrt(t/Math.max(1,e-s)); }
+  function quietCut(a,from,to){ const F=1600; let best=to,min=Infinity; for(let i=from;i+F<=to;i+=F/2){ const r=rms(a,i,i+F); if(r<min){ min=r; best=i+F/2; } } return best; }
+  const JUNK=/amara\.org|subt[ií]tulos realizados por|subt[ií]tulos por la comunidad/i;
+
+  async function keepAwake(){ try{ if('wakeLock' in navigator && !wakeLock) wakeLock=await navigator.wakeLock.request('screen'); wakeLock && wakeLock.addEventListener('release',()=>{ wakeLock=null; }); }catch(e){} }
+  document.addEventListener('visibilitychange',()=>{ if(running && document.visibilityState==='visible') keepAwake(); });
+
+  go.addEventListener('click',()=> running ? (cancelled=true, go.disabled=true, goLabel.textContent='Parando…') : run());
+
+  async function run(){
+    if(!info) return;
+    running=true; cancelled=false; notice.classList.remove('show');
+    go.classList.add('cancel'); goLabel.textContent='Parar'; modelSel.disabled=langSel.disabled=true; resumeEl.classList.remove('show');
+    statusEl.textContent='Transcribiendo… no cierres esta pestaña'; keepAwake();
+    const saved=loadSaved(); let offset = saved && saved.done>0 ? saved.done : 0;
+    if(!saved){ segs=[]; text.value=''; }
+    const startOffset=offset, duration=info.duration||0;
+    try{
+      setProgress(0,'Cargando el modelo…','');
+      const r=await ask({type:'load',model:modelSel.value});
+      engine.textContent = r.device==='webgpu' ? 'Usando la tarjeta gráfica (WebGPU).' : 'Usando el procesador. Con WebGPU disponible iría más rápido.';
+      const t0=performance.now();
+      let buffer=new Float32Array(0), first=true;
+      const lang=langSel.value||null;
+
+      async function processWindow(final){
+        const end = (!final && buffer.length>=WIN*SR) ? quietCut(buffer,22*SR,WIN*SR) : Math.min(buffer.length,WIN*SR);
+        const win=buffer.slice(0,end), len=end/SR;
+        if(rms(win,0,win.length)>0.002){
+          const res=await ask({type:'run',audio:win,language:lang},[win.buffer]);
+          const chunks=res.chunks.length ? res.chunks : [{timestamp:[0,len],text:res.text}];
+          for(const c of chunks){
+            const t=(c.text||'').trim(); if(!t || JUNK.test(t)) continue;
+            if(segs.length && segs[segs.length-1].text===t) continue;
+            let [s,f]=c.timestamp||[0,len]; if(s==null) s=0; if(f==null||f>len) f=len;
+            segs.push({start:offset+s,end:offset+f,text:t});
+          }
+          text.value=toText(segs); text.scrollTop=text.scrollHeight;
+        }
+        offset+=len; buffer=buffer.subarray(end); storeSaved(offset);
+        const done=offset-startOffset, el=(performance.now()-t0)/1000;
+        const frac=duration ? Math.min(1,offset/duration) : 0;
+        const etaText = done>20 && duration ? 'Quedan unos '+human((duration-offset)*el/done) : 'Calculando tiempo…';
+        setProgress(frac,'Transcrito '+clock(offset)+(duration?' de '+clock(duration):''),etaText);
+      }
+
+      for await (const blk of blocks(offset)){
+        if(first){ offset=blk.start; first=false; }
+        const merged=new Float32Array(buffer.length+blk.audio.length); merged.set(buffer); merged.set(blk.audio,buffer.length); buffer=merged;
+        while(buffer.length>=WIN*SR && !cancelled) await processWindow(false);
+        if(cancelled) break;
+      }
+      while(buffer.length>SR*0.3 && !cancelled) await processWindow(true);
+
+      if(cancelled){
+        statusEl.textContent='En pausa'; toast('Transcripción parada');
+        resumeEl.innerHTML='Se ha guardado el avance hasta '+clock(offset)+'. Pulsa el botón para continuar más tarde, aunque cierres la página.';
+        resumeEl.classList.add('show'); goLabel.textContent='Continuar transcripción';
+      }else{
+        setProgress(1,'Terminado: '+clock(duration||offset)+' de audio','');
+        statusEl.textContent='Transcripción terminada'; toast('Transcripción terminada');
+        if(!segs.length) text.value='(No se ha detectado voz en este audio)';
+        dropSaved(); goLabel.textContent='Transcribir de nuevo';
+      }
+    }catch(e){
+      console.error(e);
+      statusEl.textContent='Se ha producido un error';
+      let msg='No se ha podido completar la transcripción ('+String(e.message||e).replace(/</g,'&lt;')+').';
+      if(location.protocol==='file:') msg='No se puede cargar el modelo con la página abierta como archivo. Ábrela desde <code>http://localhost:8000/transcriptor.html</code> (mira el README).';
+      else if(e.message==='formato') msg='El navegador no sabe descomprimir este archivo o es demasiado grande para hacerlo de golpe. Conviértelo a Opus con ffmpeg: <code>ffmpeg -i entrada -c:a libopus -b:a 48k audio.opus</code>';
+      if(offset>0 && !(location.protocol==='file:')) msg+=' El avance está guardado hasta '+clock(offset)+': pulsa “Continuar transcripción” para seguir desde ahí. Si vuelve a fallar, prueba con un modelo más ligero.';
+      showNotice(msg); goLabel.textContent= offset>0 ? 'Continuar transcripción' : 'Transcribir';
+    }finally{
+      running=false; go.classList.remove('cancel'); go.disabled=false; modelSel.disabled=langSel.disabled=false;
+      if(wakeLock){ try{ wakeLock.release(); }catch(e){} wakeLock=null; }
+      updateStorage();
+    }
+  }
+  window.addEventListener('beforeunload',e=>{ if(running){ e.preventDefault(); e.returnValue=''; } });
+
+  // ——— resultado ———
+  async function saveFile(blob,filename,ext){
+    if(window.showSaveFilePicker){
+      try{
+        const h=await window.showSaveFilePicker({suggestedName:filename,types:[{description:ext==='srt'?'Subtítulos':'Texto',accept:{'text/plain':['.'+ext]}}]});
+        const w=await h.createWritable(); await w.write(blob); await w.close(); toast('Guardado'); return;
+      }catch(e){ if(e && e.name==='AbortError') return; }
+    }
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); toast('Guardado en Descargas');
+  }
+  $('copy').addEventListener('click',async()=>{
+    if(!text.value.trim()){ toast('No hay texto que copiar'); return; }
+    try{ await navigator.clipboard.writeText(text.value); }catch(e){ text.select(); document.execCommand('copy'); }
+    toast('Texto copiado');
+  });
+  $('txt').addEventListener('click',()=>{ if(!text.value.trim()){ toast('No hay texto que guardar'); return; }
+    saveFile(new Blob([text.value],{type:'text/plain;charset=utf-8'}),baseName()+'.txt','txt'); });
+  $('srt').addEventListener('click',()=>{ if(!segs.length){ toast('No hay subtítulos que guardar'); return; }
+    saveFile(new Blob([toSrt(segs)],{type:'text/plain;charset=utf-8'}),baseName()+'.srt','srt'); });
+
+  // ——— modelos guardados ———
+  async function updateStorage(){
+    try{
+      const has = 'caches' in window && await caches.has('transformers-cache');
+      const est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null;
+      storageEl.textContent = has
+        ? 'Modelos guardados en el navegador para esta dirección'+(est&&est.usage?': ocupan unos '+size(est.usage)+'.':'.')
+        : 'Aún no hay modelos descargados. Se guardan en el navegador la primera vez que transcribes.';
+      $('clearModels').disabled=!has;
+    }catch(e){}
+  }
+  $('clearModels').addEventListener('click',async()=>{
+    if(running){ toast('Espera a que termine la transcripción'); return; }
+    if(!confirm('¿Borrar los modelos descargados? Se volverán a descargar la próxima vez que transcribas.')) return;
+    try{ await caches.delete('transformers-cache'); }catch(e){}
+    if(worker){ worker.terminate(); worker=null; }
+    engine.textContent=''; toast('Modelos borrados'); updateStorage();
+  });
+  updateStorage();
+})();
+</script>
+</body>
+</html>

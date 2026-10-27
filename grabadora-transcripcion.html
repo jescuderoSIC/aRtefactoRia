@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Grabadora y transcripción</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF0F7; --surface:#FFFFFF; --ink:#1C1B33; --muted:#6B6A86; --line:#DCDDEB;
+  --accent:#4B3FD9; --accent-ink:#FFFFFF; --rec:#E3365F; --rec-soft:rgba(227,54,95,.18);
+  --soft:#9A99B4; --bar:#C9C6F5;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#13122A; --surface:#1D1C3A; --ink:#ECEBFA; --muted:#A3A2C2; --line:#2E2D52;
+    --accent:#8F86FF; --accent-ink:#13122A; --rec:#FF5C82; --rec-soft:rgba(255,92,130,.22);
+    --soft:#6F6E92; --bar:#3A3870; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13122A; --surface:#1D1C3A; --ink:#ECEBFA; --muted:#A3A2C2; --line:#2E2D52;
+  --accent:#8F86FF; --accent-ink:#13122A; --rec:#FF5C82; --rec-soft:rgba(255,92,130,.22);
+  --soft:#6F6E92; --bar:#3A3870; color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{min-height:100%}
+body{
+  margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.app{max-width:720px;margin:0 auto;padding:16px 16px 40px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 4px 0}
+h1{font-size:1.6rem;font-weight:700;letter-spacing:-.02em;margin:0;line-height:1}
+.status{font-size:.9rem;color:var(--muted);margin-top:4px}
+select{
+  font:inherit;font-size:.9rem;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line);border-radius:999px;padding:8px 30px 8px 14px;
+  appearance:none;-webkit-appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 16px) 52%,calc(100% - 11px) 52%;
+  background-size:5px 5px;background-repeat:no-repeat;
+}
+select:disabled{opacity:.5}
+.notice{
+  background:var(--rec-soft);border-radius:16px;padding:12px 16px;
+  font-size:.92rem;line-height:1.45;display:none;
+}
+.notice.show{display:block}
+
+/* estudio */
+.studio{
+  background:var(--surface);border:1px solid var(--line);border-radius:22px;
+  padding:28px 20px 26px;display:flex;flex-direction:column;align-items:center;gap:22px;
+}
+.timer{
+  font-family:"Literata",Georgia,serif;font-weight:500;font-size:3.4rem;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;line-height:1;
+}
+.source{font-size:.9rem;color:var(--muted);margin-top:-12px;text-align:center;min-height:1.3em}
+canvas{width:100%;height:84px;display:block}
+.controls{display:flex;align-items:center;justify-content:center;gap:28px}
+.rec{
+  position:relative;width:88px;height:88px;border-radius:50%;border:0;cursor:pointer;
+  background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;
+  box-shadow:0 10px 28px -10px var(--accent);transition:background .25s,transform .15s;
+}
+.rec svg{width:34px;height:34px;position:relative;z-index:1}
+.rec:active{transform:scale(.96)}
+.rec::before,.rec::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--rec-soft);opacity:0}
+.recording .rec{background:var(--rec);box-shadow:0 10px 28px -10px var(--rec)}
+.recording:not(.paused) .rec::before{animation:ring 1.8s ease-out infinite}
+.recording:not(.paused) .rec::after{animation:ring 1.8s ease-out .9s infinite}
+@keyframes ring{0%{transform:scale(1);opacity:1}100%{transform:scale(1.9);opacity:0}}
+.rec .stop{display:none}.recording .rec .go{display:none}.recording .rec .stop{display:block}
+.tool{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:none;border:0;color:var(--muted);font:inherit;font-size:.78rem;cursor:pointer;
+  padding:6px;border-radius:14px;min-width:60px;
+}
+.tool svg{width:24px;height:24px;stroke:var(--ink)}
+.tool:disabled{opacity:.35;cursor:default}
+.tool:active:not(:disabled){transform:scale(.95)}
+.tool .resume{display:none}.paused .tool .pause{display:none}.paused .tool .resume{display:block}
+.tool:focus-visible,.rec:focus-visible,select:focus-visible,.dl:focus-visible,.del:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.ghost{visibility:hidden}
+
+/* lista */
+h2{font-size:1.1rem;font-weight:700;margin:10px 4px 0}
+.empty{color:var(--muted);font-size:.95rem;padding:4px 4px 0;line-height:1.5}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{
+  background:var(--surface);border:1px solid var(--line);border-radius:18px;
+  padding:14px 16px;display:flex;flex-direction:column;gap:10px;
+}
+.item-top{display:flex;align-items:center;gap:10px}
+.name{
+  flex:1;min-width:0;font:inherit;font-weight:500;font-size:1rem;color:var(--ink);
+  background:transparent;border:0;border-bottom:1px dashed transparent;padding:2px 0;outline:0;
+}
+.name:focus{border-bottom-color:var(--accent)}
+.info{font-size:.85rem;color:var(--muted);white-space:nowrap}
+audio{width:100%;height:40px}
+.item-actions{display:flex;gap:10px}
+.dl{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;
+  font:inherit;font-size:.95rem;font-weight:500;border:0;border-radius:999px;padding:11px 16px;
+  background:var(--accent);color:var(--accent-ink);
+}
+.dl svg{width:18px;height:18px}
+.del{
+  font:inherit;font-size:.95rem;border:1px solid var(--line);border-radius:999px;padding:11px 16px;
+  background:transparent;color:var(--ink);cursor:pointer;
+}
+.hint{text-align:center;color:var(--muted);font-size:.85rem;line-height:1.5;margin:8px 0 0;padding:0 8px}
+.toast{
+  position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);
+  background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:.9rem;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (min-width:640px){
+  .app{padding:32px 24px 48px}
+  h1{font-size:2rem}
+  .studio{padding:36px 32px 32px}
+  .timer{font-size:4.2rem}
+}
+@media (prefers-reduced-motion:reduce){
+  .recording .rec::before,.recording .rec::after{animation:none!important;opacity:.6;transform:scale(1.25)}
+}
+
+/* transcripción */
+.settings{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.set-title{font-weight:700;font-size:1rem}
+.set-row{display:flex;flex-wrap:wrap;gap:10px 14px}
+.set-row label{display:flex;flex-direction:column;gap:5px;font-size:.82rem;color:var(--muted);flex:1;min-width:150px}
+.set-row select{width:100%}
+.set-note{margin:0;font-size:.85rem;color:var(--muted);line-height:1.45}
+.set-note.warn{color:var(--ink);background:var(--rec-soft);border-radius:12px;padding:10px 12px}
+.set-note code{font-size:.85em}
+.tx{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px}
+.tx-btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;
+  font:inherit;font-size:.95rem;font-weight:500;border:1px solid var(--accent);border-radius:999px;padding:10px 16px;
+  background:transparent;color:var(--accent);
+}
+.tx-btn svg{width:18px;height:18px}
+.tx-btn:disabled{opacity:.45;cursor:default}
+.tx-btn:focus-visible,.tx-actions button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.tx-bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden}
+.tx-bar span{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .3s}
+.tx-label{font-size:.85rem;color:var(--muted);margin-top:6px}
+.tx-text{
+  width:100%;min-height:9em;resize:vertical;border:1px solid var(--line);border-radius:14px;outline:0;
+  background:var(--bg);color:var(--ink);padding:12px 14px;
+  font-family:"Literata",Georgia,"Times New Roman",serif;font-size:1.02rem;line-height:1.6;
+}
+.tx-text:focus{border-color:var(--accent)}
+.tx-actions{display:flex;gap:8px;flex-wrap:wrap}
+.tx-actions button{
+  font:inherit;font-size:.88rem;border:1px solid var(--line);border-radius:999px;padding:8px 14px;
+  background:transparent;color:var(--ink);cursor:pointer;
+}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div>
+      <h1>Grabadora</h1>
+      <div class="status" id="status">Graba el sonido de otra pestaña</div>
+    </div>
+    <select id="quality" aria-label="Calidad de grabación">
+      <option value="64000">Opus 64 kbps</option>
+      <option value="96000">Opus 96 kbps</option>
+      <option value="128000">Opus 128 kbps</option>
+      <option value="160000" selected>Opus 160 kbps</option>
+      <option value="256000">Opus 256 kbps</option>
+    </select>
+  </header>
+
+  <div class="notice" id="notice"></div>
+
+  <section class="studio">
+    <div class="timer" id="timer">00:00</div>
+    <div class="source" id="source">Pulsa grabar y elige la pestaña</div>
+    <canvas id="meter" aria-hidden="true"></canvas>
+    <div class="controls">
+      <button class="tool" id="pause" type="button" disabled>
+        <svg class="pause" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"><path d="M9 6v12M15 6v12"/></svg>
+        <svg class="resume" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linejoin="round"><path d="M8 5.5v13l10-6.5z"/></svg>
+        <span id="pauseLabel">Pausar</span>
+      </button>
+      <button class="rec" id="rec" type="button" aria-label="Empezar a grabar">
+        <svg class="go" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6.5"/></svg>
+        <svg class="stop" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2.5"/></svg>
+      </button>
+      <span class="tool ghost" aria-hidden="true"><svg viewBox="0 0 24 24"></svg>Pausar</span>
+    </div>
+  </section>
+
+  <section class="settings">
+    <div class="set-title">Transcripción</div>
+    <div class="set-row">
+      <label>Modelo
+        <select id="model">
+          <option value="onnx-community/whisper-tiny">Muy rápido (descarga pequeña)</option>
+          <option value="onnx-community/whisper-base" selected>Equilibrado (descarga media)</option>
+          <option value="onnx-community/whisper-small">Preciso (descarga grande)</option>
+        </select>
+      </label>
+      <label>Idioma del audio
+        <select id="txlang">
+          <option value="spanish" selected>Español</option>
+          <option value="english">Inglés</option>
+          <option value="">Detectar automáticamente</option>
+        </select>
+      </label>
+    </div>
+    <p class="set-note" id="engine">El modelo se descarga la primera vez y queda guardado en el navegador. Todo se procesa en tu ordenador.</p>
+  </section>
+
+  <h2>Grabaciones</h2>
+  <div class="list" id="list"></div>
+  <p class="empty" id="empty">Aún no hay grabaciones. Las que hagas aparecerán aquí para escucharlas y descargarlas en formato Opus.</p>
+
+  <p class="hint">En el diálogo del navegador elige la pestaña “Pestaña de Chrome” y activa “Compartir también el audio de la pestaña”. Las grabaciones se guardan en formato .opus y puedes transcribirlas cuando terminen. Al descargarlas puedes elegir la carpeta; si tu navegador no lo permite, van a Descargas. Se pierden al cerrar esta página: descárgalas antes.</p>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="text/plain" id="worker-src">
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
+env.allowLocalModels = false;
+let asr = null, current = '', device = '';
+const SR = 16000;
+
+async function load(model){
+  if (asr && current === model) return;
+  if (asr) { try { await asr.dispose(); } catch (e) {} asr = null; }
+  const progress = p => { if (p.status === 'progress' && p.total) postMessage({ type:'download', file:p.file, loaded:p.loaded, total:p.total }); };
+  let useGpu = false;
+  try { useGpu = !!(navigator.gpu && await navigator.gpu.requestAdapter()); } catch (e) {}
+  if (useGpu) {
+    try {
+      asr = await pipeline('automatic-speech-recognition', model,
+        { device:'webgpu', dtype:{ encoder_model:'fp32', decoder_model_merged:'q4' }, progress_callback:progress });
+      device = 'webgpu';
+    } catch (e) { asr = null; }
+  }
+  if (!asr) {
+    asr = await pipeline('automatic-speech-recognition', model, { device:'wasm', dtype:'q8', progress_callback:progress });
+    device = 'wasm';
+  }
+  current = model;
+  postMessage({ type:'ready', device });
+}
+
+function rms(a, s, e){ let t = 0; for (let i = s; i < e; i++) t += a[i]*a[i]; return Math.sqrt(t / Math.max(1, e - s)); }
+function quietCut(a, from, to){
+  const F = 1600; let best = to, min = Infinity;
+  for (let i = from; i + F <= to; i += F/2) { const r = rms(a, i, i + F); if (r < min) { min = r; best = i + F/2; } }
+  return best;
+}
+const JUNK = /amara\.org|subt[ií]tulos realizados por|subt[ií]tulos por la comunidad/i;
+
+self.onmessage = async e => {
+  const { id, model, language, audio } = e.data;
+  try {
+    await load(model);
+    postMessage({ type:'start', id });
+    const total = audio.length, segs = [];
+    let pos = 0;
+    while (pos < total) {
+      let end = Math.min(total, pos + 30*SR);
+      if (end < total) end = quietCut(audio, pos + 22*SR, end);
+      if (rms(audio, pos, end) > 0.002) {
+        const opts = { task:'transcribe', return_timestamps:true };
+        if (language) opts.language = language;
+        const out = await asr(audio.subarray(pos, end), opts);
+        const off = pos / SR, len = (end - pos) / SR;
+        const chunks = (out.chunks && out.chunks.length) ? out.chunks : [{ timestamp:[0, len], text: out.text }];
+        for (const c of chunks) {
+          const t = (c.text || '').trim();
+          if (!t || JUNK.test(t)) continue;
+          let [s, f] = c.timestamp || [0, len];
+          if (s == null) s = 0; if (f == null || f > len) f = len;
+          segs.push({ start: off + s, end: off + f, text: t });
+        }
+      }
+      pos = end;
+      postMessage({ type:'progress', id, done: pos / SR, total: total / SR, segs });
+    }
+    postMessage({ type:'done', id, segs });
+  } catch (err) {
+    postMessage({ type:'error', id, message: String((err && err.message) || err) });
+  }
+};
+</script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const app=$('app'), recBtn=$('rec'), pauseBtn=$('pause'), pauseLabel=$('pauseLabel'),
+        timerEl=$('timer'), sourceEl=$('source'), statusEl=$('status'), notice=$('notice'),
+        quality=$('quality'), list=$('list'), empty=$('empty'), canvas=$('meter');
+  const ctx2d=canvas.getContext('2d');
+
+  let stream=null, recorder=null, chunks=[], audioCtx=null, analyser=null, raf=0;
+  let startTime=0, pausedAt=0, pausedTotal=0, tick=0, count=0, mime='', ext='';
+
+  try{ const q=localStorage.getItem('grabadora-calidad'); if(q) quality.value=q; }catch(e){}
+  quality.addEventListener('change',()=>{ try{ localStorage.setItem('grabadora-calidad',quality.value);}catch(e){} });
+
+  function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2000); }
+  function showNotice(h){ notice.innerHTML=h; notice.classList.add('show'); }
+  function hideNotice(){ notice.classList.remove('show'); }
+  const fmt=ms=>{ const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor(s/60)%60, x=s%60;
+    return (h?h+':'+String(m).padStart(2,'0'):String(m).padStart(2,'0'))+':'+String(x).padStart(2,'0'); };
+  const size=b=> b<1048576 ? (b/1024).toFixed(0)+' KB' : (b/1048576).toFixed(1).replace('.',',')+' MB';
+
+  // formato Opus: preferimos Ogg (.opus); si no, WebM
+  function pickFormat(){
+    const opts=[['audio/ogg;codecs=opus','opus'],['audio/webm;codecs=opus','webm']];
+    for(const [m,e] of opts){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return [m,e]; }
+    return ['',''];
+  }
+
+  // ——— WebM (Opus) → Ogg Opus (.opus), sin recomprimir ———
+  function webmToOggOpus(buf){
+    const d=new Uint8Array(buf); let p=0;
+    const MASTER=new Set([0x18538067,0x1654AE6B,0xAE,0xE1,0x1F43B675,0xA0]);
+    let head=null, channels=2; const packets=[];
+    function vlen(b,max){ let len=1,m=0x80; while(len<=max && !(b&m)){ m>>=1; len++; } if(len>max) throw new Error('vint'); return [len,m]; }
+    function readId(){ const [len]=vlen(d[p],4); let id=0; for(let i=0;i<len;i++) id=id*256+d[p+i]; p+=len; return id; }
+    function readSize(){ const [len,m]=vlen(d[p],8); let v=d[p]&(m-1), ones=(v===m-1);
+      for(let i=1;i<len;i++){ v=v*256+d[p+i]; if(d[p+i]!==0xFF) ones=false; } p+=len; return ones?-1:v; }
+    const uint=n=>{ let v=0; for(let i=0;i<n;i++) v=v*256+d[p+i]; return v; };
+    while(p<d.length){
+      let id,size;
+      try{ id=readId(); size=readSize(); }catch(e){ break; }
+      if(MASTER.has(id)) continue;
+      if(size<0 || p+size>d.length) break;
+      if(id===0x63A2) head=d.slice(p,p+size);
+      else if(id===0x9F) channels=uint(size);
+      else if(id===0xA3 || id===0xA1){
+        let q=p; const [len]=vlen(d[q],8); q+=len+2;
+        if(d[q]&0x06) throw new Error('lacing'); q+=1;
+        if(p+size>q) packets.push(d.slice(q,p+size));
+      }
+      p+=size;
+    }
+    if(!packets.length) throw new Error('sin audio');
+    const td=new TextEncoder();
+    if(!head || td.encode('OpusHead').some((c,i)=>head[i]!==c)){
+      head=new Uint8Array(19); head.set(td.encode('OpusHead')); const v=new DataView(head.buffer);
+      head[8]=1; head[9]=channels; v.setUint16(10,0,true); v.setUint32(12,48000,true);
+    }
+    const vendor=td.encode('Grabadora');
+    const tags=new Uint8Array(8+4+vendor.length+4); tags.set(td.encode('OpusTags'));
+    new DataView(tags.buffer).setUint32(8,vendor.length,true); tags.set(vendor,12);
+
+    const samples=pk=>{ const toc=pk[0], c=toc>>3;
+      const fs = c<12 ? [480,960,1920,2880][c&3] : c<16 ? [480,960][c&1] : [120,240,480,960][c&3];
+      const k=toc&3, n = k===0 ? 1 : k===3 ? (pk[1]&0x3F) : 2; return fs*n; };
+
+    const T=new Uint32Array(256);
+    for(let i=0;i<256;i++){ let r=i<<24; for(let j=0;j<8;j++) r=(r&0x80000000)?((r<<1)^0x04C11DB7):(r<<1); T[i]=r>>>0; }
+    const serial=(Math.random()*0xFFFFFFFF)>>>0; let seq=0; const pages=[];
+    function page(pks,granule,flags){
+      const segs=[]; for(const pk of pks){ let n=pk.length; while(n>=255){ segs.push(255); n-=255; } segs.push(n); }
+      const body=pks.reduce((a,b)=>a+b.length,0);
+      const out=new Uint8Array(27+segs.length+body), v=new DataView(out.buffer);
+      out.set([0x4F,0x67,0x67,0x53]); out[4]=0; out[5]=flags;
+      v.setUint32(6,granule%4294967296,true); v.setUint32(10,Math.floor(granule/4294967296),true);
+      v.setUint32(14,serial,true); v.setUint32(18,seq++,true); out[26]=segs.length; out.set(segs,27);
+      let o=27+segs.length; for(const pk of pks){ out.set(pk,o); o+=pk.length; }
+      let crc=0; for(let i=0;i<out.length;i++) crc=((crc<<8)^T[((crc>>>24)^out[i])&0xFF])>>>0;
+      v.setUint32(22,crc,true); pages.push(out);
+    }
+    page([head],0,0x02); page([tags],0,0);
+    let gran=0, cur=[], segc=0;
+    packets.forEach((pk,i)=>{
+      const need=Math.floor(pk.length/255)+1;
+      if(cur.length && (segc+need>255 || cur.length>=50)){ page(cur,gran,0); cur=[]; segc=0; }
+      cur.push(pk); segc+=need; gran+=samples(pk);
+      if(i===packets.length-1) page(cur,gran,0x04);
+    });
+    return new Blob(pages,{type:'audio/ogg'});
+  }
+
+  const supported = navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && window.MediaRecorder;
+  if(!supported || !pickFormat()[0]){
+    recBtn.disabled=true; recBtn.style.opacity=.45;
+    statusEl.textContent='No disponible en este navegador';
+    showNotice('Este navegador no permite grabar el audio de otras pestañas. Ábrela en <b>Chrome</b> o <b>Edge</b> de escritorio.');
+  }
+
+  // medidor
+  function sizeCanvas(){ const r=canvas.getBoundingClientRect(), d=window.devicePixelRatio||1; canvas.width=r.width*d; canvas.height=r.height*d; }
+  sizeCanvas(); window.addEventListener('resize',()=>{ sizeCanvas(); if(!analyser) drawIdle(); });
+  const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  function bars(levels,color){
+    const w=canvas.width,h=canvas.height,n=levels.length,gap=w/n,bw=Math.max(2,gap*.55);
+    ctx2d.clearRect(0,0,w,h); ctx2d.fillStyle=color;
+    for(let i=0;i<n;i++){ const bh=Math.max(bw,levels[i]*h); const x=i*gap+(gap-bw)/2, y=(h-bh)/2;
+      ctx2d.beginPath(); ctx2d.roundRect ? ctx2d.roundRect(x,y,bw,bh,bw/2) : ctx2d.rect(x,y,bw,bh); ctx2d.fill(); }
+  }
+  const N=40; let levels=new Array(N).fill(0);
+  function drawIdle(){ bars(new Array(N).fill(0),css('--bar')); }
+  drawIdle();
+  function loop(){
+    const data=new Uint8Array(analyser.fftSize); analyser.getByteTimeDomainData(data);
+    let sum=0; for(const v of data){ const x=(v-128)/128; sum+=x*x; }
+    const rms=Math.min(1,Math.sqrt(sum/data.length)*3.2);
+    levels.shift(); levels.push(app.classList.contains('paused')?0:rms);
+    bars(levels, app.classList.contains('paused')?css('--soft'):css('--rec'));
+    raf=requestAnimationFrame(loop);
+  }
+
+  function elapsed(){ return (app.classList.contains('paused')?pausedAt:Date.now())-startTime-pausedTotal; }
+
+  async function start(){
+    hideNotice();
+    try{
+      stream=await navigator.mediaDevices.getDisplayMedia({
+        video:{displaySurface:'browser'},
+        audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,suppressLocalAudioPlayback:false},
+        preferCurrentTab:false, selfBrowserSurface:'exclude', surfaceSwitching:'include', systemAudio:'include'
+      });
+    }catch(e){
+      if(e && e.name==='NotAllowedError') toast('Grabación cancelada');
+      else showNotice('No se ha podido iniciar la captura. Comprueba que usas Chrome o Edge de escritorio.');
+      return;
+    }
+    const audioTracks=stream.getAudioTracks();
+    if(!audioTracks.length){
+      stream.getTracks().forEach(t=>t.stop()); stream=null;
+      showNotice('No llega sonido: en el diálogo hay que elegir una <b>pestaña</b> y activar <b>“Compartir también el audio de la pestaña”</b>. Inténtalo de nuevo.');
+      return;
+    }
+    const label=(stream.getVideoTracks()[0]||{}).label||'';
+    sourceEl.textContent = label ? 'Grabando: '+label.replace(/^web-contents-media-stream:\/\/.*$/,'otra pestaña') : 'Grabando otra pestaña';
+
+    const audioOnly=new MediaStream(audioTracks);
+    [mime,ext]=pickFormat();
+    recorder=new MediaRecorder(audioOnly,{mimeType:mime,audioBitsPerSecond:+quality.value});
+    chunks=[];
+    recorder.ondataavailable=e=>{ if(e.data && e.data.size) chunks.push(e.data); };
+    recorder.onstop=finish;
+    recorder.start(1000);
+
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    analyser=audioCtx.createAnalyser(); analyser.fftSize=1024;
+    audioCtx.createMediaStreamSource(audioOnly).connect(analyser);
+    levels=new Array(N).fill(0); loop();
+
+    // si el usuario deja de compartir desde la barra del navegador
+    stream.getTracks().forEach(t=>t.addEventListener('ended',()=>{ if(recorder && recorder.state!=='inactive') stop(); }));
+
+    startTime=Date.now(); pausedTotal=0;
+    app.classList.add('recording'); app.classList.remove('paused');
+    recBtn.setAttribute('aria-label','Parar y guardar');
+    pauseBtn.disabled=false; quality.disabled=true;
+    statusEl.textContent='Grabando…';
+    tick=setInterval(()=>{ timerEl.textContent=fmt(elapsed()); },250);
+    window.addEventListener('beforeunload',warn);
+  }
+
+  function togglePause(){
+    if(!recorder) return;
+    if(recorder.state==='recording'){
+      recorder.pause(); pausedAt=Date.now(); app.classList.add('paused');
+      pauseLabel.textContent='Seguir'; statusEl.textContent='En pausa';
+    }else if(recorder.state==='paused'){
+      recorder.resume(); pausedTotal+=Date.now()-pausedAt; app.classList.remove('paused');
+      pauseLabel.textContent='Pausar'; statusEl.textContent='Grabando…';
+    }
+  }
+
+  function stop(){
+    if(!recorder) return;
+    if(app.classList.contains('paused')) pausedTotal+=Date.now()-pausedAt, app.classList.remove('paused');
+    const dur=elapsed();
+    recorder._dur=dur;
+    if(recorder.state!=='inactive') recorder.stop();
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+    cancelAnimationFrame(raf); if(audioCtx) audioCtx.close();
+    analyser=null; audioCtx=null; stream=null;
+    clearInterval(tick);
+    app.classList.remove('recording');
+    recBtn.setAttribute('aria-label','Empezar a grabar');
+    pauseBtn.disabled=true; pauseLabel.textContent='Pausar'; quality.disabled=false;
+    statusEl.textContent='Graba el sonido de otra pestaña';
+    sourceEl.textContent='Pulsa grabar y elige la pestaña';
+    timerEl.textContent='00:00'; drawIdle();
+  }
+
+  async function finish(){
+    const dur=recorder._dur||0; recorder=null;
+    if(!chunks.length){ toast('No se ha grabado sonido'); return; }
+    let blob=new Blob(chunks,{type:mime.split(';')[0]}), fileExt=ext; chunks=[];
+    if(ext==='webm'){
+      try{ blob=webmToOggOpus(await blob.arrayBuffer()); fileExt='opus'; }
+      catch(e){ console.warn(e); toast('No se pudo pasar a .opus; se guarda como .webm'); }
+    }
+    count++; addItem(blob,dur,'Grabación '+count,fileExt);
+    toast('Grabación guardada en la lista');
+  }
+
+  const FTYPES={opus:['Audio Opus','audio/ogg'],webm:['Audio Opus (WebM)','audio/webm'],txt:['Texto','text/plain'],srt:['Subtítulos','text/plain']};
+  async function saveFile(blob,filename,fileExt){
+    if(window.showSaveFilePicker){
+      try{
+        const h=await window.showSaveFilePicker({suggestedName:filename,
+          types:[{description:(FTYPES[fileExt]||FTYPES.txt)[0],accept:{[(FTYPES[fileExt]||FTYPES.txt)[1]]:['.'+fileExt]}}]});
+        const w=await h.createWritable(); await w.write(blob); await w.close();
+        toast('Guardado'); return true;
+      }catch(e){
+        if(e && e.name==='AbortError') return false;
+      }
+    }
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    toast('Guardado en Descargas'); return true;
+  }
+
+  function addItem(blob,dur,name,ext){
+    const url=URL.createObjectURL(blob);
+    const el=document.createElement('article'); el.className='item';
+    el.innerHTML=`
+      <div class="item-top">
+        <input class="name" aria-label="Nombre de la grabación">
+        <span class="info"></span>
+      </div>
+      <audio controls preload="metadata"></audio>
+      <div class="item-actions">
+        <button class="dl" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+          Descargar .${ext}
+        </button>
+        <button class="del" type="button">Eliminar</button>
+      </div>
+      <div class="tx">
+        <button class="tx-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14M5 11h14M5 16h9"/></svg>
+          <span>Transcribir</span>
+        </button>
+        <div class="tx-progress" hidden><div class="tx-bar"><span></span></div><div class="tx-label"></div></div>
+        <div class="tx-result" hidden>
+          <textarea class="tx-text" aria-label="Transcripción"></textarea>
+          <div class="tx-actions">
+            <button type="button" data-a="copy">Copiar</button>
+            <button type="button" data-a="txt">Descargar .txt</button>
+            <button type="button" data-a="srt">Descargar subtítulos .srt</button>
+          </div>
+        </div>
+      </div>`;
+    el.querySelector('.name').value=name;
+    el.querySelector('.info').textContent=fmt(dur)+'  ·  '+size(blob.size);
+    el.querySelector('audio').src=url;
+    el.querySelector('.dl').addEventListener('click',async()=>{
+      const n=(el.querySelector('.name').value.trim()||name).replace(/[\\/:*?"<>|]+/g,'-');
+      if(await saveFile(blob,n+'.'+ext,ext)) el.dataset.saved='1';
+    });
+    el.querySelector('.del').addEventListener('click',()=>{
+      if(!el.dataset.saved && !confirm('Esta grabación no se ha descargado. ¿Eliminarla?')) return;
+      URL.revokeObjectURL(url); el.remove(); refresh();
+    });
+    setupTranscription(el,blob,()=> (el.querySelector('.name').value.trim()||name).replace(/[\\/:*?"<>|]+/g,'-'));
+    list.prepend(el); refresh();
+  }
+  function refresh(){ empty.style.display=list.children.length?'none':''; }
+
+  function warn(e){
+    const pending=recorder || txBusy || [...list.children].some(el=>!el.dataset.saved);
+    if(pending){ e.preventDefault(); e.returnValue=''; }
+  }
+
+
+  // ——— transcripción con Whisper (en el navegador) ———
+  const modelSel=$('model'), txlang=$('txlang'), engine=$('engine');
+  try{
+    const m=localStorage.getItem('grabadora-modelo'); if(m) modelSel.value=m;
+    const l=localStorage.getItem('grabadora-idioma'); if(l!==null) txlang.value=l;
+  }catch(e){}
+  modelSel.addEventListener('change',()=>{ try{localStorage.setItem('grabadora-modelo',modelSel.value);}catch(e){} });
+  txlang.addEventListener('change',()=>{ try{localStorage.setItem('grabadora-idioma',txlang.value);}catch(e){} });
+  if(location.protocol==='file:'){
+    engine.classList.add('warn');
+    engine.innerHTML='Para transcribir, abre esta página desde un servidor local: en la carpeta del archivo ejecuta <code>python -m http.server 8000</code> y entra en <code>http://localhost:8000/grabadora-transcripcion.html</code>. Grabar funciona igual desde aquí.';
+  }
+
+  const WORKER_CODE = document.getElementById('worker-src').textContent;
+  let worker=null, txBusy=false, jobId=0; const queue=[], jobs={};
+  const dl={};
+  function getWorker(){
+    if(worker) return worker;
+    worker=new Worker(URL.createObjectURL(new Blob([WORKER_CODE],{type:'text/javascript'})),{type:'module'});
+    worker.onmessage=e=>{
+      const m=e.data, job=jobs[m.id];
+      if(m.type==='download'){
+        dl[m.file]=[m.loaded,m.total];
+        let a=0,b=0; for(const k in dl){ a+=dl[k][0]; b+=dl[k][1]; }
+        const cur=jobs[currentJob]; if(cur) cur.ui.progress(b?a/b:0,'Descargando el modelo… '+Math.round(b?a/b*100:0)+' %  ('+size(a)+' de '+size(b)+')');
+        return;
+      }
+      if(m.type==='ready'){
+        if(location.protocol!=='file:') engine.classList.remove('warn');
+        engine.textContent = m.device==='webgpu'
+          ? 'Modelo listo. Se está usando la tarjeta gráfica (WebGPU), que es lo más rápido.'
+          : 'Modelo listo. Se está usando el procesador; puede tardar algo más que el propio audio.';
+        return;
+      }
+      if(!job) return;
+      if(m.type==='start') job.ui.progress(0,'Transcribiendo…');
+      if(m.type==='progress'){ job.ui.progress(m.done/m.total,'Transcribiendo… '+fmt(m.done*1000)+' de '+fmt(m.total*1000)); job.ui.partial(m.segs); }
+      if(m.type==='done'){ job.ui.done(m.segs); next(); }
+      if(m.type==='error'){ job.ui.error(m.message); next(); }
+    };
+    worker.onerror=e=>{
+      const job=jobs[currentJob]; if(job) job.ui.error(e.message||'No se pudo cargar el transcriptor');
+      worker=null; next();
+    };
+    return worker;
+  }
+  let currentJob=null;
+  function next(){
+    if(currentJob!=null){ delete jobs[currentJob]; currentJob=null; }
+    txBusy=false;
+    const j=queue.shift(); if(j) run(j);
+  }
+  async function run(job){
+    txBusy=true; currentJob=job.id; jobs[job.id]=job;
+    job.ui.progress(0,'Preparando el audio…');
+    let audio;
+    try{
+      const ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
+      const buf=await ctx.decodeAudioData(await job.blob.arrayBuffer()); ctx.close();
+      if(buf.numberOfChannels===1) audio=buf.getChannelData(0).slice();
+      else{ const a=buf.getChannelData(0), b=buf.getChannelData(1); audio=new Float32Array(a.length); for(let i=0;i<a.length;i++) audio[i]=(a[i]+b[i])/2; }
+    }catch(e){ job.ui.error('No se pudo leer el audio de esta grabación.'); next(); return; }
+    try{ getWorker().postMessage({id:job.id,model:modelSel.value,language:txlang.value||null,audio},[audio.buffer]); }
+    catch(e){ job.ui.error('No se pudo iniciar el transcriptor.'); next(); }
+  }
+
+  const ts=(t,sep)=>{ const ms=Math.round(t*1000), h=Math.floor(ms/3600000), m=Math.floor(ms/60000)%60, s=Math.floor(ms/1000)%60;
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')+sep+String(ms%1000).padStart(3,'0'); };
+  const toSrt=segs=>segs.map((g,i)=>(i+1)+'\n'+ts(g.start,',')+' --> '+ts(Math.max(g.end,g.start+0.3),',')+'\n'+g.text+'\n').join('\n');
+  const toText=segs=>segs.map(g=>g.text).join(' ').replace(/\s+([,.;:?!])/g,'$1').trim();
+
+  function setupTranscription(el,blob,getName){
+    const btn=el.querySelector('.tx-btn'), btnLabel=btn.querySelector('span'),
+          prog=el.querySelector('.tx-progress'), bar=prog.querySelector('.tx-bar span'), label=prog.querySelector('.tx-label'),
+          result=el.querySelector('.tx-result'), area=el.querySelector('.tx-text');
+    let segs=[];
+    const ui={
+      progress(f,t){ prog.hidden=false; bar.style.width=Math.round(f*100)+'%'; label.textContent=t; },
+      partial(s){ segs=s; if(s.length){ result.hidden=false; area.value=toText(s); } },
+      done(s){ segs=s; prog.hidden=true; btn.disabled=false; btnLabel.textContent='Volver a transcribir';
+        result.hidden=false; area.value=toText(s)||'(No se ha detectado voz en esta grabación)'; toast('Transcripción terminada'); },
+      error(msg){ prog.hidden=true; btn.disabled=false; btnLabel.textContent='Reintentar transcripción';
+        toast('Error al transcribir');
+        engine.classList.add('warn');
+        engine.textContent = location.protocol==='file:'
+          ? 'No se pudo transcribir porque la página está abierta como archivo. Ábrela desde un servidor local (python -m http.server 8000).'
+          : 'No se pudo transcribir: '+msg+'. Comprueba la conexión (la primera vez hay que descargar el modelo) y vuelve a intentarlo.'; }
+    };
+    btn.addEventListener('click',()=>{
+      btn.disabled=true; result.hidden=true; segs=[];
+      const job={id:++jobId,blob,ui};
+      if(txBusy){ queue.push(job); ui.progress(0,'En cola, esperando a que termine otra transcripción…'); }
+      else run(job);
+    });
+    result.querySelector('[data-a="copy"]').addEventListener('click',async()=>{
+      try{ await navigator.clipboard.writeText(area.value); toast('Texto copiado'); }
+      catch(e){ area.select(); document.execCommand('copy'); toast('Texto copiado'); }
+    });
+    result.querySelector('[data-a="txt"]').addEventListener('click',()=>
+      saveFile(new Blob([area.value],{type:'text/plain;charset=utf-8'}),getName()+'.txt','txt'));
+    result.querySelector('[data-a="srt"]').addEventListener('click',()=>{
+      if(!segs.length){ toast('No hay subtítulos que guardar'); return; }
+      saveFile(new Blob([toSrt(segs)],{type:'text/plain;charset=utf-8'}),getName()+'.srt','srt');
+    });
+  }
+
+  recBtn.addEventListener('click',()=> recorder ? stop() : start());
+  pauseBtn.addEventListener('click',togglePause);
+})();
+</script>
+</body>
+</html>

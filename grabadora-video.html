@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Grabadora de vídeo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF0F7; --surface:#FFFFFF; --ink:#1C1B33; --muted:#6B6A86; --line:#DCDDEB;
+  --accent:#4B3FD9; --accent-ink:#FFFFFF; --rec:#E3365F; --rec-soft:rgba(227,54,95,.18);
+  --soft:#9A99B4; --tint:rgba(75,63,217,.08);
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#13122A; --surface:#1D1C3A; --ink:#ECEBFA; --muted:#A3A2C2; --line:#2E2D52;
+    --accent:#8F86FF; --accent-ink:#13122A; --rec:#FF5C82; --rec-soft:rgba(255,92,130,.22);
+    --soft:#6F6E92; --tint:rgba(143,134,255,.12); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13122A; --surface:#1D1C3A; --ink:#ECEBFA; --muted:#A3A2C2; --line:#2E2D52;
+  --accent:#8F86FF; --accent-ink:#13122A; --rec:#FF5C82; --rec-soft:rgba(255,92,130,.22);
+  --soft:#6F6E92; --tint:rgba(143,134,255,.12); color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{min-height:100%}
+body{
+  margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.app{max-width:720px;margin:0 auto;padding:16px 16px 40px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 4px 0}
+h1{font-size:1.6rem;font-weight:700;letter-spacing:-.02em;margin:0;line-height:1}
+.status{font-size:.9rem;color:var(--muted);margin-top:4px}
+select{
+  font:inherit;font-size:.9rem;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line);border-radius:999px;padding:8px 30px 8px 14px;
+  appearance:none;-webkit-appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 16px) 52%,calc(100% - 11px) 52%;
+  background-size:5px 5px;background-repeat:no-repeat;
+}
+select:disabled{opacity:.5}
+.notice{
+  background:var(--rec-soft);border-radius:16px;padding:12px 16px;
+  font-size:.92rem;line-height:1.45;display:none;
+}
+.notice.show{display:block}
+
+/* estudio */
+.studio{
+  background:var(--surface);border:1px solid var(--line);border-radius:22px;
+  padding:20px 20px 26px;display:flex;flex-direction:column;align-items:center;gap:18px;
+}
+.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.seg button{
+  font:inherit;font-size:.9rem;border:0;border-radius:999px;padding:7px 16px;cursor:pointer;
+  background:transparent;color:var(--muted);display:flex;align-items:center;gap:6px;
+}
+.seg button svg{width:17px;height:17px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg button:disabled{opacity:.4;cursor:default}
+.screen{
+  position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;
+  background:var(--bg);border:1px solid var(--line);display:grid;place-items:center;
+}
+.screen video{width:100%;height:100%;object-fit:contain;background:#000;display:none}
+.live .screen video{display:block}
+.screen .idle{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--muted);font-size:.9rem;text-align:center;padding:0 20px}
+.screen .idle svg{width:38px;height:38px;stroke:var(--soft)}
+.live .screen .idle{display:none}
+.badge{
+  position:absolute;top:10px;left:10px;display:none;align-items:center;gap:6px;
+  background:rgba(0,0,0,.6);color:#fff;font-size:.8rem;font-weight:500;padding:4px 10px;border-radius:999px;
+}
+.badge::before{content:"";width:8px;height:8px;border-radius:50%;background:#FF5C82}
+.recording .badge{display:flex}
+.recording.paused .badge::before{background:#bbb}
+.recording:not(.paused) .badge::before{animation:blink 1.2s steps(2,start) infinite}
+@keyframes blink{to{visibility:hidden}}
+.timer{
+  font-family:"Literata",Georgia,serif;font-weight:500;font-size:3rem;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;line-height:1;
+}
+.source{font-size:.9rem;color:var(--muted);margin-top:-10px;text-align:center;min-height:1.3em}
+.check{display:flex;align-items:center;gap:8px;font-size:.92rem;color:var(--ink);cursor:pointer}
+.check input{width:18px;height:18px;accent-color:var(--accent);margin:0}
+.check.off{opacity:.45;cursor:default}
+.controls{display:flex;align-items:center;justify-content:center;gap:28px}
+.rec{
+  position:relative;width:88px;height:88px;border-radius:50%;border:0;cursor:pointer;
+  background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;
+  box-shadow:0 10px 28px -10px var(--accent);transition:background .25s,transform .15s;
+}
+.rec svg{width:34px;height:34px;position:relative;z-index:1}
+.rec:active{transform:scale(.96)}
+.rec::before,.rec::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--rec-soft);opacity:0}
+.recording .rec{background:var(--rec);box-shadow:0 10px 28px -10px var(--rec)}
+.recording:not(.paused) .rec::before{animation:ring 1.8s ease-out infinite}
+.recording:not(.paused) .rec::after{animation:ring 1.8s ease-out .9s infinite}
+@keyframes ring{0%{transform:scale(1);opacity:1}100%{transform:scale(1.9);opacity:0}}
+.rec .stop{display:none}.recording .rec .go{display:none}.recording .rec .stop{display:block}
+.tool{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:none;border:0;color:var(--muted);font:inherit;font-size:.78rem;cursor:pointer;
+  padding:6px;border-radius:14px;min-width:60px;
+}
+.tool svg{width:24px;height:24px;stroke:var(--ink)}
+.tool:disabled{opacity:.35;cursor:default}
+.tool:active:not(:disabled){transform:scale(.95)}
+.tool .resume{display:none}.paused .tool .pause{display:none}.paused .tool .resume{display:block}
+.tool:focus-visible,.rec:focus-visible,select:focus-visible,.seg button:focus-visible,.dl:focus-visible,.del:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+
+/* lista */
+h2{font-size:1.1rem;font-weight:700;margin:10px 4px 0}
+.empty{color:var(--muted);font-size:.95rem;padding:4px 4px 0;line-height:1.5}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{
+  background:var(--surface);border:1px solid var(--line);border-radius:18px;
+  padding:14px 16px;display:flex;flex-direction:column;gap:10px;
+}
+.item-top{display:flex;align-items:center;gap:10px}
+.name{
+  flex:1;min-width:0;font:inherit;font-weight:500;font-size:1rem;color:var(--ink);
+  background:transparent;border:0;border-bottom:1px dashed transparent;padding:2px 0;outline:0;
+}
+.name:focus{border-bottom-color:var(--accent)}
+.info{font-size:.85rem;color:var(--muted);white-space:nowrap}
+.item video{width:100%;border-radius:12px;background:#000;max-height:60vh}
+.item-actions{display:flex;gap:10px}
+.dl{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;
+  font:inherit;font-size:.95rem;font-weight:500;border:0;border-radius:999px;padding:11px 16px;
+  background:var(--accent);color:var(--accent-ink);
+}
+.dl svg{width:18px;height:18px}
+.del{
+  font:inherit;font-size:.95rem;border:1px solid var(--line);border-radius:999px;padding:11px 16px;
+  background:transparent;color:var(--ink);cursor:pointer;
+}
+.hint{text-align:center;color:var(--muted);font-size:.85rem;line-height:1.5;margin:8px 0 0;padding:0 8px}
+.toast{
+  position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);
+  background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:.9rem;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (min-width:640px){
+  .app{padding:32px 24px 48px}
+  h1{font-size:2rem}
+  .studio{padding:28px 32px 32px}
+  .timer{font-size:3.6rem}
+}
+@media (prefers-reduced-motion:reduce){
+  .recording .rec::before,.recording .rec::after{animation:none!important;opacity:.6;transform:scale(1.25)}
+  .recording .badge::before{animation:none!important}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div>
+      <h1>Grabadora de vídeo</h1>
+      <div class="status" id="status">Graba la pantalla o la cámara</div>
+    </div>
+    <select id="quality" aria-label="Calidad de vídeo">
+      <option value="1500000">Ligera · 1,5 Mbps</option>
+      <option value="3000000">Normal · 3 Mbps</option>
+      <option value="5000000" selected>Alta · 5 Mbps</option>
+      <option value="8000000">Máxima · 8 Mbps</option>
+    </select>
+  </header>
+
+  <div class="notice" id="notice"></div>
+
+  <section class="studio">
+    <div class="seg" role="group" aria-label="Qué grabar">
+      <button type="button" id="srcScreen" aria-pressed="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+        Pantalla
+      </button>
+      <button type="button" id="srcCam" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg>
+        Cámara
+      </button>
+    </div>
+
+    <div class="screen">
+      <video id="preview" muted playsinline autoplay></video>
+      <div class="idle" id="idle">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg>
+        <span id="idleText">Aquí verás lo que se está grabando</span>
+      </div>
+      <div class="badge" id="badge">REC</div>
+    </div>
+
+    <div class="timer" id="timer">00:00</div>
+    <div class="source" id="source">Pulsa grabar y elige qué compartir</div>
+
+    <label class="check" id="micWrap"><input type="checkbox" id="mic"> Incluir mi micrófono</label>
+
+    <div class="controls">
+      <button class="tool" id="pause" type="button" disabled>
+        <svg class="pause" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"><path d="M9 6v12M15 6v12"/></svg>
+        <svg class="resume" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linejoin="round"><path d="M8 5.5v13l10-6.5z"/></svg>
+        <span id="pauseLabel">Pausar</span>
+      </button>
+      <button class="rec" id="rec" type="button" aria-label="Empezar a grabar">
+        <svg class="go" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6.5"/></svg>
+        <svg class="stop" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2.5"/></svg>
+      </button>
+      <span class="tool" aria-hidden="true" style="visibility:hidden"><svg viewBox="0 0 24 24"></svg>Pausar</span>
+    </div>
+  </section>
+
+  <h2>Vídeos</h2>
+  <div class="list" id="list"></div>
+  <p class="empty" id="empty">Aún no hay vídeos. Los que grabes aparecerán aquí para verlos y descargarlos.</p>
+
+  <p class="hint">Con “Pantalla” puedes elegir una pestaña, una ventana o la pantalla entera. Para grabar también el sonido, en el diálogo del navegador activa “Compartir también el audio”. Los vídeos se guardan en MP4 si tu navegador lo permite y si no en WebM. Se pierden al cerrar esta página: descárgalos antes.</p>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const app=$('app'), recBtn=$('rec'), pauseBtn=$('pause'), pauseLabel=$('pauseLabel'),
+        timerEl=$('timer'), sourceEl=$('source'), statusEl=$('status'), notice=$('notice'),
+        quality=$('quality'), list=$('list'), empty=$('empty'), preview=$('preview'),
+        srcScreen=$('srcScreen'), srcCam=$('srcCam'), mic=$('mic'), micWrap=$('micWrap');
+
+  let streams=[], recorder=null, chunks=[], audioCtx=null, mode='screen';
+  let startTime=0, pausedAt=0, pausedTotal=0, tick=0, count=0, mime='', ext='';
+
+  try{
+    const q=localStorage.getItem('grabadora-video-calidad'); if(q) quality.value=q;
+    mic.checked=localStorage.getItem('grabadora-video-mic')==='1';
+  }catch(e){}
+  quality.addEventListener('change',()=>{ try{ localStorage.setItem('grabadora-video-calidad',quality.value);}catch(e){} });
+  mic.addEventListener('change',()=>{ try{ localStorage.setItem('grabadora-video-mic',mic.checked?'1':'0');}catch(e){} });
+
+  function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2000); }
+  function showNotice(h){ notice.innerHTML=h; notice.classList.add('show'); }
+  function hideNotice(){ notice.classList.remove('show'); }
+  const fmt=ms=>{ const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor(s/60)%60, x=s%60;
+    return (h?h+':'+String(m).padStart(2,'0'):String(m).padStart(2,'0'))+':'+String(x).padStart(2,'0'); };
+  const size=b=> b<1048576 ? (b/1024).toFixed(0)+' KB' : (b/1048576).toFixed(1).replace('.',',')+' MB';
+
+  // formato: MP4 si el navegador lo graba (se abre en cualquier reproductor); si no, WebM
+  function pickFormat(){
+    const opts=[
+      ['video/mp4;codecs=avc1,mp4a.40.2','mp4'],['video/mp4;codecs=avc1,opus','mp4'],['video/mp4','mp4'],
+      ['video/webm;codecs=vp9,opus','webm'],['video/webm;codecs=vp8,opus','webm'],['video/webm','webm']
+    ];
+    for(const [m,e] of opts){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return [m,e]; }
+    return ['',''];
+  }
+
+  const md=navigator.mediaDevices||{};
+  const canScreen=!!md.getDisplayMedia, canCam=!!md.getUserMedia;
+  if(!window.MediaRecorder || !pickFormat()[0] || (!canScreen && !canCam)){
+    recBtn.disabled=true; recBtn.style.opacity=.45; srcScreen.disabled=srcCam.disabled=true;
+    statusEl.textContent='No disponible en este navegador';
+    showNotice('Este navegador no permite grabar vídeo. Ábrela en <b>Chrome</b>, <b>Edge</b> o <b>Firefox</b>.');
+  }else if(!canScreen){
+    srcScreen.disabled=true; setMode('cam');
+  }
+
+  function setMode(m){
+    mode=m;
+    srcScreen.setAttribute('aria-pressed',m==='screen'); srcCam.setAttribute('aria-pressed',m==='cam');
+    sourceEl.textContent = m==='screen' ? 'Pulsa grabar y elige qué compartir' : 'Pulsa grabar para usar la cámara';
+  }
+  srcScreen.addEventListener('click',()=>{ if(!recorder) setMode('screen'); });
+  srcCam.addEventListener('click',()=>{ if(!recorder) setMode('cam'); });
+
+  function elapsed(){ return (app.classList.contains('paused')?pausedAt:Date.now())-startTime-pausedTotal; }
+  function stopStreams(){ streams.forEach(s=>s.getTracks().forEach(t=>t.stop())); streams=[]; }
+
+  async function getStreams(){
+    if(mode==='cam'){
+      const s=await md.getUserMedia({
+        video:{width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},
+        audio: mic.checked ? {echoCancellation:true,noiseSuppression:true} : false
+      });
+      streams.push(s);
+      return {video:s.getVideoTracks()[0], audio:s.getAudioTracks()};
+    }
+    const d=await md.getDisplayMedia({
+      video:{frameRate:{ideal:30}},
+      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,suppressLocalAudioPlayback:false},
+      selfBrowserSurface:'exclude', surfaceSwitching:'include', systemAudio:'include'
+    });
+    streams.push(d);
+    const audio=[...d.getAudioTracks()];
+    if(mic.checked){
+      try{ const m=await md.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}}); streams.push(m); audio.push(...m.getAudioTracks()); }
+      catch(e){ toast('Sin micrófono: se graba sin tu voz'); }
+    }
+    return {video:d.getVideoTracks()[0], audio};
+  }
+
+  // MediaRecorder solo graba una pista de audio: si hay varias (pestaña + micrófono) se mezclan
+  function mixAudio(tracks){
+    if(tracks.length<2) return tracks;
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const dest=audioCtx.createMediaStreamDestination();
+    tracks.forEach(t=>audioCtx.createMediaStreamSource(new MediaStream([t])).connect(dest));
+    return dest.stream.getAudioTracks();
+  }
+
+  async function start(){
+    hideNotice();
+    let got;
+    try{ got=await getStreams(); }
+    catch(e){
+      stopStreams();
+      if(e && e.name==='NotAllowedError') toast(mode==='cam'?'Sin permiso para la cámara':'Grabación cancelada');
+      else if(e && e.name==='NotFoundError') showNotice('No se ha encontrado ninguna cámara conectada.');
+      else showNotice('No se ha podido iniciar la captura. Comprueba que usas Chrome, Edge o Firefox de escritorio.');
+      return;
+    }
+    const audio=mixAudio(got.audio);
+    const out=new MediaStream([got.video, ...audio]);
+    preview.srcObject=new MediaStream([got.video]);
+
+    const label=got.video.label||'';
+    sourceEl.textContent = mode==='cam'
+      ? 'Grabando: '+(label||'cámara')
+      : 'Grabando: '+(label && !/^web-contents-media-stream/.test(label) ? label : 'pantalla compartida');
+    if(!audio.length) sourceEl.textContent+=' · sin sonido';
+
+    [mime,ext]=pickFormat();
+    try{
+      recorder=new MediaRecorder(out,{mimeType:mime,videoBitsPerSecond:+quality.value,audioBitsPerSecond:128000});
+    }catch(e){
+      [mime,ext]=['video/webm','webm'];
+      recorder=new MediaRecorder(out,{videoBitsPerSecond:+quality.value});
+    }
+    chunks=[];
+    recorder.ondataavailable=e=>{ if(e.data && e.data.size) chunks.push(e.data); };
+    recorder.onstop=finish;
+    recorder.start(1000);
+
+    // si el usuario deja de compartir desde la barra del navegador
+    got.video.addEventListener('ended',()=>{ if(recorder && recorder.state!=='inactive') stop(); });
+
+    startTime=Date.now(); pausedTotal=0;
+    app.classList.add('recording','live'); app.classList.remove('paused');
+    recBtn.setAttribute('aria-label','Parar y guardar');
+    pauseBtn.disabled=false; quality.disabled=true; mic.disabled=true; micWrap.classList.add('off');
+    srcScreen.disabled=srcCam.disabled=true;
+    statusEl.textContent='Grabando…';
+    tick=setInterval(()=>{ timerEl.textContent=fmt(elapsed()); },250);
+    window.addEventListener('beforeunload',warn);
+  }
+
+  function togglePause(){
+    if(!recorder) return;
+    if(recorder.state==='recording'){
+      recorder.pause(); pausedAt=Date.now(); app.classList.add('paused');
+      pauseLabel.textContent='Seguir'; statusEl.textContent='En pausa';
+    }else if(recorder.state==='paused'){
+      recorder.resume(); pausedTotal+=Date.now()-pausedAt; app.classList.remove('paused');
+      pauseLabel.textContent='Pausar'; statusEl.textContent='Grabando…';
+    }
+  }
+
+  function stop(){
+    if(!recorder) return;
+    if(app.classList.contains('paused')) pausedTotal+=Date.now()-pausedAt, app.classList.remove('paused');
+    recorder._dur=elapsed();
+    if(recorder.state!=='inactive') recorder.stop();
+    stopStreams(); if(audioCtx) audioCtx.close(); audioCtx=null;
+    preview.srcObject=null;
+    clearInterval(tick);
+    app.classList.remove('recording','live');
+    recBtn.setAttribute('aria-label','Empezar a grabar');
+    pauseBtn.disabled=true; pauseLabel.textContent='Pausar'; quality.disabled=false;
+    mic.disabled=false; micWrap.classList.remove('off');
+    srcScreen.disabled=!canScreen; srcCam.disabled=!canCam;
+    statusEl.textContent='Graba la pantalla o la cámara';
+    setMode(mode);
+    timerEl.textContent='00:00';
+  }
+
+  function finish(){
+    const dur=recorder._dur||0; recorder=null;
+    if(!chunks.length){ toast('No se ha grabado nada'); return; }
+    const blob=new Blob(chunks,{type:mime.split(';')[0]}); chunks=[];
+    count++; addItem(blob,dur,'Vídeo '+count,ext);
+    toast('Vídeo guardado en la lista');
+  }
+
+  async function saveFile(blob,filename,fileExt){
+    if(window.showSaveFilePicker){
+      try{
+        const h=await window.showSaveFilePicker({suggestedName:filename,
+          types:[{description:'Vídeo '+fileExt.toUpperCase(),accept:{['video/'+fileExt]:['.'+fileExt]}}]});
+        const w=await h.createWritable(); await w.write(blob); await w.close();
+        toast('Guardado'); return true;
+      }catch(e){
+        if(e && e.name==='AbortError') return false;
+      }
+    }
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    toast('Guardado en Descargas'); return true;
+  }
+
+  function addItem(blob,dur,name,ext){
+    const url=URL.createObjectURL(blob);
+    const el=document.createElement('article'); el.className='item';
+    el.innerHTML=`
+      <div class="item-top">
+        <input class="name" aria-label="Nombre del vídeo">
+        <span class="info"></span>
+      </div>
+      <video controls preload="metadata" playsinline></video>
+      <div class="item-actions">
+        <button class="dl" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+          Descargar .${ext}
+        </button>
+        <button class="del" type="button">Eliminar</button>
+      </div>`;
+    el.querySelector('.name').value=name;
+    el.querySelector('.info').textContent=fmt(dur)+'  ·  '+size(blob.size);
+    el.querySelector('video').src=url;
+    el.querySelector('.dl').addEventListener('click',async()=>{
+      const n=(el.querySelector('.name').value.trim()||name).replace(/[\\/:*?"<>|]+/g,'-');
+      if(await saveFile(blob,n+'.'+ext,ext)) el.dataset.saved='1';
+    });
+    el.querySelector('.del').addEventListener('click',()=>{
+      if(!el.dataset.saved && !confirm('Este vídeo no se ha descargado. ¿Eliminarlo?')) return;
+      URL.revokeObjectURL(url); el.remove(); refresh();
+    });
+    list.prepend(el); refresh();
+  }
+  function refresh(){ empty.style.display=list.children.length?'none':''; }
+
+  function warn(e){
+    const pending=recorder || [...list.children].some(el=>!el.dataset.saved);
+    if(pending){ e.preventDefault(); e.returnValue=''; }
+  }
+
+  recBtn.addEventListener('click',()=> recorder ? stop() : start());
+  pauseBtn.addEventListener('click',togglePause);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Transcriptor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF0F7; --surface:#FFFFFF; --ink:#1C1B33; --muted:#6B6A86; --line:#DCDDEB;
+  --accent:#4B3FD9; --accent-ink:#FFFFFF; --rec:#E3365F; --rec-soft:rgba(227,54,95,.18);
+  --soft:#9A99B4; --tint:rgba(75,63,217,.08);
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#13122A; --surface:#1D1C3A; --ink:#ECEBFA; --muted:#A3A2C2; --line:#2E2D52;
+    --accent:#8F86FF; --accent-ink:#13122A; --rec:#FF5C82; --rec-soft:rgba(255,92,130,.22);
+    --soft:#6F6E92; --tint:rgba(143,134,255,.12); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13122A; --surface:#1D1C3A; --ink:#ECEBFA; --muted:#A3A2C2; --line:#2E2D52;
+  --accent:#8F86FF; --accent-ink:#13122A; --rec:#FF5C82; --rec-soft:rgba(255,92,130,.22);
+  --soft:#6F6E92; --tint:rgba(143,134,255,.12); color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{min-height:100%}
+body{
+  margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.app{max-width:720px;margin:0 auto;padding:16px 16px 40px;display:flex;flex-direction:column;gap:14px}
+header{padding:4px 4px 0}
+h1{font-size:1.6rem;font-weight:700;letter-spacing:-.02em;margin:0;line-height:1}
+.status{font-size:.9rem;color:var(--muted);margin-top:4px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:20px}
+.notice{background:var(--rec-soft);border-radius:16px;padding:12px 16px;font-size:.92rem;line-height:1.45;display:none}
+.notice.show{display:block}
+.notice code{font-size:.88em}
+select{
+  font:inherit;font-size:.9rem;color:var(--ink);background:var(--surface);width:100%;
+  border:1px solid var(--line);border-radius:999px;padding:8px 30px 8px 14px;
+  appearance:none;-webkit-appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 16px) 52%,calc(100% - 11px) 52%;
+  background-size:5px 5px;background-repeat:no-repeat;
+}
+select:disabled{opacity:.5}
+button{font:inherit;cursor:pointer}
+button:focus-visible,select:focus-visible,.drop:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+
+/* zona de archivo */
+.drop{
+  display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;
+  border:2px dashed var(--line);border-radius:22px;padding:28px 20px;background:var(--surface);
+  transition:border-color .2s,background .2s;cursor:pointer;
+}
+.drop.over{border-color:var(--accent);background:var(--tint)}
+.round{
+  width:88px;height:88px;border-radius:50%;border:0;display:grid;place-items:center;
+  background:var(--accent);color:var(--accent-ink);box-shadow:0 10px 28px -10px var(--accent);
+}
+.round svg{width:34px;height:34px}
+.drop-title{font-weight:700;font-size:1.1rem}
+.drop-sub{font-size:.88rem;color:var(--muted);line-height:1.45;max-width:30em}
+.file{display:none;align-items:center;gap:12px;width:100%;text-align:left}
+.file.show{display:flex}
+.file-icon{width:44px;height:44px;border-radius:14px;background:var(--tint);display:grid;place-items:center;flex:none}
+.file-icon svg{width:22px;height:22px;stroke:var(--accent)}
+.file-name{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-meta{font-size:.85rem;color:var(--muted);margin-top:2px}
+.file-text{min-width:0;flex:1}
+
+/* ajustes */
+.set-row{display:flex;flex-wrap:wrap;gap:10px 14px}
+.set-row label{display:flex;flex-direction:column;gap:5px;font-size:.82rem;color:var(--muted);flex:1;min-width:150px}
+.go{
+  margin-top:16px;width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+  border:0;border-radius:999px;padding:14px 18px;font-size:1.05rem;font-weight:700;
+  background:var(--accent);color:var(--accent-ink);box-shadow:0 10px 24px -12px var(--accent);
+}
+.go svg{width:20px;height:20px}
+.go:disabled{opacity:.4;cursor:default;box-shadow:none}
+.go.cancel{background:var(--rec);box-shadow:0 10px 24px -12px var(--rec)}
+.resume{margin:12px 0 0;font-size:.88rem;line-height:1.45;color:var(--muted);display:none}
+.resume.show{display:block}
+.link{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;font-size:inherit}
+
+/* progreso */
+.prog{display:none;flex-direction:column;gap:10px}
+.prog.show{display:flex}
+.prog-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.pct{font-family:"Literata",Georgia,serif;font-weight:500;font-size:2.4rem;line-height:1;font-variant-numeric:tabular-nums}
+.eta{font-size:.88rem;color:var(--muted);text-align:right}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar span{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .4s}
+.prog-label{font-size:.88rem;color:var(--muted)}
+
+/* resultado */
+h2{font-size:1.1rem;font-weight:700;margin:0 0 10px}
+textarea{
+  width:100%;min-height:14em;resize:vertical;border:1px solid var(--line);border-radius:14px;outline:0;
+  background:var(--bg);color:var(--ink);padding:14px 16px;
+  font-family:"Literata",Georgia,"Times New Roman",serif;font-size:1.05rem;line-height:1.65;
+}
+textarea:focus{border-color:var(--accent)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.pill{border:1px solid var(--line);border-radius:999px;padding:9px 15px;background:transparent;color:var(--ink);font-size:.9rem}
+.pill:disabled{opacity:.4;cursor:default}
+.pill.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+
+/* modelos */
+.models{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.models p{margin:0;font-size:.88rem;color:var(--muted);line-height:1.45;flex:1;min-width:200px}
+.engine{font-size:.85rem;color:var(--muted);margin:10px 0 0;line-height:1.45}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);
+  background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:.9rem;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* cuaderno (notebookjs + Prism) */
+.nb-notebook{display:flex;flex-direction:column;gap:14px;counter-reset:paso}
+.nb-worksheet{display:flex;flex-direction:column;gap:14px}
+.nb-cell{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px 20px;position:relative}
+.nb-markdown-cell{font-family:"Literata",Georgia,serif;font-size:1.05rem;line-height:1.65}
+.nb-markdown-cell > :first-child{margin-top:0}
+.nb-markdown-cell > :last-child{margin-bottom:0}
+.nb-markdown-cell code{font-family:ui-monospace,"Cascadia Code",Consolas,monospace;font-size:.88em;background:var(--tint);padding:1px 6px;border-radius:6px}
+.nb-code-cell{counter-increment:paso;padding-top:14px}
+.nb-code-cell::before{
+  content:"Paso " counter(paso);display:block;margin-bottom:10px;
+  font-size:.82rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);
+}
+.nb-input pre, .nb-output pre{
+  margin:0;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px 16px;
+  font-family:ui-monospace,"Cascadia Code","SF Mono",Consolas,monospace;font-size:.86rem;line-height:1.6;
+  color:var(--ink);tab-size:4;
+}
+.nb-input pre code{font:inherit;color:inherit;background:none}
+.nb-output{margin-top:10px}
+.nb-output pre{color:var(--muted)}
+.copy{position:absolute;top:10px;right:12px;border:1px solid var(--line);border-radius:999px;padding:4px 12px;
+  background:var(--surface);color:var(--muted);font-size:.8rem}
+.copy:hover{color:var(--ink);border-color:var(--accent)}
+
+/* colores de sintaxis con la paleta de la app (estilo Pygments) */
+:root{--tk-com:#6B6A86;--tk-kw:#4B3FD9;--tk-str:#0E7C66;--tk-num:#B5542A;--tk-fn:#B0246A;--tk-bi:#2563A8;--tk-op:#55546F}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--tk-com:#7E7DA3;--tk-kw:#A79FFF;--tk-str:#6FD8B4;--tk-num:#FFB27A;--tk-fn:#FF8FB8;--tk-bi:#7FC4FF;--tk-op:#B8B7D6}
+}
+:root[data-theme="dark"]{--tk-com:#7E7DA3;--tk-kw:#A79FFF;--tk-str:#6FD8B4;--tk-num:#FFB27A;--tk-fn:#FF8FB8;--tk-bi:#7FC4FF;--tk-op:#B8B7D6}
+.token.comment,.token.prolog{color:var(--tk-com);font-style:italic}
+.token.keyword,.token.boolean{color:var(--tk-kw);font-weight:600}
+.token.string,.token.triple-quoted-string,.token.string-interpolation{color:var(--tk-str)}
+.token.number{color:var(--tk-num)}
+.token.function{color:var(--tk-fn)}
+.token.builtin,.token.class-name,.token.decorator{color:var(--tk-bi)}
+.token.operator,.token.punctuation{color:var(--tk-op)}
+@media (min-width:640px){
+  .app{padding:32px 24px 48px}
+  h1{font-size:2rem}
+  .card{padding:24px 28px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Transcribir en Google Colab</h1>
+    <div class="status" id="status">Cargando el cuaderno…</div>
+  </header>
+
+  <div class="notice" id="notice"></div>
+
+  <div id="nb"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/notebookjs@0.6.7/notebook.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" data-manual></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+nb.markdown = texto => marked.parse(texto);
+
+fetch("transcripcion-google-colab_Whisper.ipynb")
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(json => {
+    const cont = $("nb");
+    cont.appendChild(nb.parse(json).render());
+
+    // Resaltado de sintaxis (Prism reconoce las clases "lang-python" que pone notebookjs)
+    Prism.highlightAllUnder(cont);
+
+    // Botón de copiar en cada celda de código
+    cont.querySelectorAll(".nb-code-cell").forEach(cell => {
+      const code = cell.querySelector(".nb-input code");
+      if (!code) return;
+      const b = document.createElement("button");
+      b.className = "copy"; b.type = "button"; b.textContent = "Copiar";
+      b.onclick = () => navigator.clipboard.writeText(code.textContent).then(() => toast("Código copiado"));
+      cell.appendChild(b);
+    });
+
+    $("status").textContent = "Cuaderno de Whisper paso a paso";
+  })
+  .catch(err => {
+    $("status").textContent = "No se pudo cargar el cuaderno";
+    const n = $("notice");
+    n.innerHTML = "No se pudo leer <code>transcripcion-google-colab_Whisper.ipynb</code> (" + err.message +
+      "). Abre la página desde un servidor web, no como archivo local.";
+    n.classList.add("show");
+  });
+</script>
+</body>
+</html>
