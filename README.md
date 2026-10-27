@@ -1,5 +1,10 @@
 # aRtefactoRia
 
+## Página web desplegada 
+
+[https://https://jescuderosic.github.io/aRtefactoRia/](https://https://jescuderosic.github.io/aRtefactoRia/)
+
+
 Página web que graba el sonido de otra pestaña del navegador, lo guarda en formato Opus (`.opus`) y lo transcribe a texto con Whisper, todo en tu propio ordenador.
 
 ## Archivos
